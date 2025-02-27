@@ -1,7 +1,13 @@
 {% extends 'base-cam.html' %}
 
 {% block start %}
-<div class="main-wrapper-camera">
+<div class="main-wrapper-camera bg-blue">
+    <div class="container-fluid p-2 mx-auto text-center">
+        {% load static %}
+        <a class="navbar-brand animate" href="#">
+            <img class="animate-img" src="{% static 'assets/img/logo.png' %}" alt="logo">
+        </a>
+    </div>
     <div class="container d-md-flex align-items-center rounded ">
         <div class="col-md-6 col-sm-12 bg-dark ">
             <div class="camera-container cam-div">
@@ -21,9 +27,6 @@
                     </div>
                     <div class="data-box">
                         <span class="text-center">ID: 123456</span>
-                    </div>
-                    <div class="data-box">
-                        <span class="text-center">Department: IT</span>
                     </div>
                     <div class="data-box">
                         <span class="text-center">Designation: Software Developer</span>

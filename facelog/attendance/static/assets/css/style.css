@@ -6,7 +6,8 @@
 
 :root {
     --primary: #ff931ecf;
-    --secondary: #00319a;
+    --secondary: #000333fc;
+    --tertiary: #01b3b2;
 }
 
 body {
@@ -42,13 +43,13 @@ a.btn {
 }
 
 .cam-div {
-    height: 85vh;
+    height: 65vh;
     border-radius: 10px;
 }
 
 .knownface {
-    width: 250px;
-    height: 250px;
+    width: 200px;
+    height: 200px;
     margin: 0 auto;
     border: 2px solid black;
     object-fit: cover;
@@ -56,15 +57,46 @@ a.btn {
 }
 
 .data-box {
-    background: var(--primary);
-    border-radius: 30px;
+    background: #01b3b23d;
+    /* border-radius: 30px; */
     padding: 10px 5px;
     margin: 20px;
+    color: white;
+    border: 2px solid var(--tertiary);
     font-weight: bold;
 }
 
 .rounded {
-    border-radius: 50px;
-    border: 2px solid black;
+    border-radius: 30px !important;
+    border: 3px solid var(--tertiary);
     padding: 15px;
+}
+
+img.animate-img {
+    width: 165px;
+    height: 165px;
+    object-fit: contain;
+    background: white;
+    padding: 20px;
+    border-radius: 100%;
+    border: 2px solid #171717;
+    animation: flip 6s infinite linear;
+}
+
+@keyframes flip {
+    0% {
+        transform: rotateY(0deg);
+    }
+
+    100% {
+        transform: rotateY(360deg);
+    }
+}
+
+.bg-blue {
+    background: var(--secondary);
+}
+
+.main-wrapper-camera {
+    height: 100vh;
 }
