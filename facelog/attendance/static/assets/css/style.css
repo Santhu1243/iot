@@ -40,3 +40,31 @@ a.btn {
     background: linear-gradient(rgba(0, 0, 0, 0.50), rgba(0, 0, 0, 0.50)),
         url('../img/bg.png') no-repeat center center/cover;
 }
+
+.cam-div {
+    height: 85vh;
+    border-radius: 10px;
+}
+
+.knownface {
+    width: 250px;
+    height: 250px;
+    margin: 0 auto;
+    border: 2px solid black;
+    object-fit: cover;
+    border-radius: 25px;
+}
+
+.data-box {
+    background: var(--primary);
+    border-radius: 30px;
+    padding: 10px 5px;
+    margin: 20px;
+    font-weight: bold;
+}
+
+.rounded {
+    border-radius: 50px;
+    border: 2px solid black;
+    padding: 15px;
+}
