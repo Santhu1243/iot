@@ -6,7 +6,10 @@
 
 :root {
     --primary: #ff931ecf;
-    --secondary: #00319a;
+    --secondary: #000333fc;
+    --tertiary: #01b3b2;
+    --success: rgb(5 255 138);
+
 }
 
 body {
@@ -39,4 +42,73 @@ a.btn {
     height: 85vh;
     background: linear-gradient(rgba(0, 0, 0, 0.50), rgba(0, 0, 0, 0.50)),
         url('../img/bg.png') no-repeat center center/cover;
+}
+
+.cam-div {
+    height: 65vh;
+    border-radius: 10px;
+}
+
+.knownface {
+    width: 200px;
+    height: 200px;
+    margin: 0 auto;
+    border: 2px solid black;
+    object-fit: cover;
+    border-radius: 25px;
+}
+
+.data-box {
+    background: #01b3b23d;
+    padding: 10px 5px;
+    margin: 20px;
+    color: white;
+    border: 2px solid var(--tertiary);
+    font-weight: bold;
+}
+
+.rounded {
+    border: 3px solid var(--tertiary);
+    padding: 15px;
+}
+
+img.animate-img {
+    width: 165px;
+    height: 165px;
+    object-fit: contain;
+    background: #ffffff;
+    padding: 20px;
+    border-radius: 100%;
+    border: 15px dashed #01b3b2;
+    animation: rotate 6s infinitelinear;
+    position: absolute;
+    left: 75px;
+    top: 125px;
+}
+
+@keyframes flip {
+    0% {
+        transform: rotateY(0deg);
+    }
+
+    100% {
+        transform: rotateY(360deg);
+    }
+}
+
+.bg-blue {
+    background: var(--secondary);
+}
+
+.main-wrapper-camera {
+    height: 100vh;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+}
+
+.text-success {
+    --bs-text-opacity: 1;
+    color: var(--success) !important;
 }
