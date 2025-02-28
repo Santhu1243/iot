@@ -8,6 +8,8 @@
     --primary: #ff931ecf;
     --secondary: #000333fc;
     --tertiary: #01b3b2;
+    --success: rgb(5 255 138);
+
 }
 
 body {
@@ -74,11 +76,11 @@ img.animate-img {
     width: 165px;
     height: 165px;
     object-fit: contain;
-    background: white;
+    background: #ffffff;
     padding: 20px;
     border-radius: 100%;
-    border: 2px solid #171717;
-    animation: flip 6s infinitelinear;
+    border: 15px dashed #01b3b2;
+    animation: rotate 6s infinitelinear;
     position: absolute;
     left: 75px;
     top: 125px;
@@ -104,4 +106,9 @@ img.animate-img {
     flex-wrap: wrap;
     align-items: center;
     justify-content: center;
+}
+
+.text-success {
+    --bs-text-opacity: 1;
+    color: var(--success) !important;
 }
