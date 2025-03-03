@@ -112,3 +112,10 @@ img.animate-img {
     --bs-text-opacity: 1;
     color: var(--success) !important;
 }
+.hr-main-wrapper {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 85vh;
+    background: #01b3b2;
+}
