@@ -1,3 +1,16 @@
-.venv
-__pycache__
-env
+# Virtual Environment
+.venv/
+env/
+
+# Python Bytecode
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Logs and Debug Files
+*.log
+debug.log
+
+facelog/facelog/settings.py
+.env
