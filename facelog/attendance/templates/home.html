@@ -7,12 +7,11 @@
             <div class="col-md-8 mx-auto mt-5 text-center text-white">
                 <h4 class="display-3">Welcome to Chezzion <br> Great Moves!</h4>
                 <div class="container d-flex  mt-5 flex-column justify-content-center align-items-center">
-                    <a class="btn btn-success mt-3"> HR dashboard </a>
-                    <a class="btn btn-light mt-3"> Employee Login Portal </a>
+                    <a class="btn btn-success mt-3" href="{% url 'attendance:hr_dashboard' %}" > HR dashboard </a>
+                    <a class="btn btn-light mt-3" href="{% url 'attendance:employee_login' %}"> Employee Login Portal </a>
                     <a class="btn btn-secondary mt-3"> Check your attendance </a>
                 </div>
             </div>
-
         </div>
     </div>
 </div>

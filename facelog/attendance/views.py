@@ -4,5 +4,13 @@ from django.shortcuts import render
 def home(request):
     return render(request, 'home.html')
 
-def cam_home(request):
+
+
+
+from django.shortcuts import render
+
+def employee_login_view(request):
     return render(request, 'cam_home.html')
+
+def hr_dashboard_view(request):
+    return render(request, 'hr_dashboard.html')
