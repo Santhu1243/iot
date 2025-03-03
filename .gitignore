@@ -1,16 +1,42 @@
-# Virtual Environment
-.venv/
-env/
-
-# Python Bytecode
+# Byte-compiled / optimized / DLL files
 __pycache__/
-*.pyc
-*.pyo
-*.pyd
+*.py[cod]
+*$py.class
 
-# Logs and Debug Files
+# Virtual environment
+env/
+venv/
+
+# Django migrations
+**/migrations/
+
+# Logs
+logs/
 *.log
 debug.log
 
-facelog/facelog/settings.py
+# IDE and editor files
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+# OS-specific files
+.DS_Store
+Thumbs.db
+
+# Python virtual environment
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Compiled Python files
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+
+# Environment variables
 .env
+.env.local
+.env.production
