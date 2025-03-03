@@ -7,8 +7,12 @@ from .views import process_attendance
 
 urlpatterns = [
     path('', views.home, name='home'),
+    path('employee-login/', views.employee_login_view, name='employee_login'),
+    path('hr-dashboard/', views.hr_dashboard_view, name='hr_dashboard'),  
     path('attendance', views.cam_home, name='cam_home'),
     path('capture/', capture_attendance, name='capture_attendance'),
     path('process_attendance/', process_attendance, name='process_attendance'),
 ] + static(settings.STATIC_URL, document_root=settings.STATIC_ROOT) + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+
+
 
