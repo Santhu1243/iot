@@ -95,3 +95,6 @@ def process_attendance(request):
 
 def hr_dashboard_view(request):
     return render(request, 'hr_dashboard.html')
+
+def cam_home(request):
+    return render(request, 'cam_home.html')
