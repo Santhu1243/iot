@@ -8,35 +8,72 @@
             <img class="animate-img" src="{% static 'assets/img/logo.png' %}" alt="logo">
         </a>
     </div>
-    <div class="container d-md-flex align-items-center rounded ">
-        <div class="col-md-6 col-sm-12 bg-dark ">
+    <div class="container d-md-flex align-items-center rounded">
+        <!-- Live Camera Feed -->
+        <div class="col-md-6 col-sm-12 bg-dark">
             <div class="camera-container cam-div">
-
+                <video id="video" width="100%" autoplay></video>
+                <canvas id="canvas" style="display:none;"></canvas>
             </div>
         </div>
-        <div class="col-md-6 col-sm-12 ">
+
+        <!-- Employee Details -->
+        <div class="col-md-6 col-sm-12">
             <div class="camera-container data-div mt-3">
                 <div class="d-flex justify-content-center">
-                    {% load static %}
-                    <img src="{% static 'assets/img/Puneeth.jpg' %}" alt="knownface" class="img-fluid knownface">
-
+                    <img id="knownFace" src="{% static 'assets/img/default_user.png' %}" alt="knownface"
+                        class="img-fluid knownface">
                 </div>
                 <div class="data-flow text-center col-md-6 col-sm-12 mx-auto pt-3">
-                    <div class="data-box">
-                        <span class="text-center">Puneeth</span>
-                    </div>
-                    <div class="data-box">
-                        <span class="text-center">ID: 123456</span>
-                    </div>
-                    <div class="data-box">
-                        <span class="text-center">Designation: Software Developer</span>
-                    </div>
-                    <div class="data-box">
-                        <span class="text-center text-success">Attendance marked @ 10.00am</span>
-                    </div>
+                    <div class="data-box"><span id="empName">Waiting for face...</span></div>
+                    <div class="data-box"><span id="empID"></span></div>
+                    <div class="data-box"><span id="empDesignation"></span></div>
+                    <div class="data-box"><span id="attendanceStatus" class="text-success"></span></div>
                 </div>
             </div>
         </div>
     </div>
 </div>
+
+<script>
+    const video = document.getElementById("video");
+    const canvas = document.getElementById("canvas");
+    const ctx = canvas.getContext("2d");
+
+    // Access webcam
+    navigator.mediaDevices.getUserMedia({ video: true })
+        .then(stream => {
+            video.srcObject = stream;
+        })
+        .catch(err => console.error("Error accessing camera: ", err));
+
+    function captureFrame() {
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        let imageData = canvas.toDataURL("image/jpeg");
+
+        fetch("{% url 'process_attendance' %}", {
+            method: "POST",
+            headers: { "Content-Type": "application/json", "X-CSRFToken": "{{ csrf_token }}" },
+            body: JSON.stringify({ image: imageData })
+        })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === "success") {
+                    document.getElementById("knownFace").src = imageData;
+                    document.getElementById("empName").innerText = data.name;
+                    document.getElementById("empID").innerText = "ID: " + data.emp_id;
+                    document.getElementById("empDesignation").innerText = "Designation: " + data.designation;
+                    document.getElementById("attendanceStatus").innerText = data.message;
+                } else {
+                    document.getElementById("attendanceStatus").innerText = "Face not recognized";
+                }
+            })
+            .catch(error => console.error("Error:", error));
+    }
+
+    setInterval(captureFrame, 5000); // Capture every 5 seconds
+</script>
+
 {% endblock %}
