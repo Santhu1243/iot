@@ -156,6 +156,7 @@ def cam_home(request):
 from django.shortcuts import render, redirect
 from .forms import EmployeeForm
 from .models import Employee
+from django.urls import reverse_lazy
 
 def add_employee(request):
     if request.method == "POST":
@@ -250,3 +251,17 @@ def process_attendance(request):
     return JsonResponse({"error": "Invalid request method"}, status=400)
 
 
+from django.shortcuts import render, redirect
+from .forms import EmployeeForm  # Ensure EmployeeForm exists
+from .models import Employee
+
+def register_employee(request):
+    if request.method == "POST":
+        form = EmployeeForm(request.POST, request.FILES)
+        if form.is_valid():
+            form.save()
+            return redirect('employee_list')  # Redirect after successful registration
+    else:
+        form = EmployeeForm()
+
+    return render(request, 'register_employee.html', {'form': form})

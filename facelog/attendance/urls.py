@@ -4,6 +4,7 @@ from django.conf import settings
 from django.conf.urls.static import static
 from .views import capture_attendance
 from .views import process_attendance  
+from .views import register_employee
 
 urlpatterns = [
     path('', views.home, name='home'),
