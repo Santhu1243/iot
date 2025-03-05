@@ -2,11 +2,17 @@ from django.db import models
 
 
 
+
 class Employee(models.Model):
-    emp_id = models.CharField(max_length=20, unique=True)
     name = models.CharField(max_length=100)
-    face_encoding = models.TextField()
-    designation = models.CharField(max_length=100, default=None)  
+    emp_id = models.CharField(max_length=50, unique=True)
+    designation = models.CharField(max_length=100)
+    face_encoding = models.TextField(blank=True, null=True)  # Stores the face encoding
+    image = models.ImageField(upload_to="employee_faces/", blank=True, null=True)
+
+    def __str__(self):
+        return self.name
+
 
 
 class Attendance(models.Model):
