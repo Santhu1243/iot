@@ -175,9 +175,7 @@ for filename in os.listdir(KNOWN_FACES_DIR):
     if filename.endswith(".jpg") or filename.endswith(".png"):
         path = os.path.join(KNOWN_FACES_DIR, filename)
         image = face_recognition.load_image_file(path)
-        encoding = face_recognition.face_encodings(image)
-
-        if encoding:  # Only add if encoding exists
+        if encoding := face_recognition.face_encodings(image):  # Only add if encoding exists
             known_face_encodings.append(encoding[0])
             known_face_names.append(os.path.splitext(filename)[0])  # Use filename as name
         else:
