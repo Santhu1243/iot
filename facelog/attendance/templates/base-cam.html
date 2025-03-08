@@ -19,56 +19,7 @@
     <!-- js file -->
     <script src="{% static 'assets/js/script.js' %}"></script>
     <script src="{% static 'assets/js/bootstrap.min.js' %}"></script>
-    <script>
-        document.addEventListener("DOMContentLoaded", function () {
-            let video = document.createElement("video");
-            video.setAttribute("autoplay", "true");
-            video.setAttribute("playsinline", "true");
-            document.querySelector(".cam-div").appendChild(video);
 
-            if (navigator.mediaDevices.getUserMedia) {
-                navigator.mediaDevices.getUserMedia({ video: true })
-                    .then(function (stream) {
-                        video.srcObject = stream;
-                        setInterval(captureAndSendFrame, 3000);  // Capture every 3 seconds
-                    })
-                    .catch(function (err) {
-                        console.error("Error accessing the camera:", err);
-                    });
-            }
-
-            function captureAndSendFrame() {
-                let canvas = document.createElement("canvas");
-                canvas.width = video.videoWidth;
-                canvas.height = video.videoHeight;
-                let ctx = canvas.getContext("2d");
-                ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-
-                let image_data = canvas.toDataURL("image/jpeg");
-
-                fetch('http://127.0.0.1:8000/process_attendance/', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-CSRFToken': '{{ csrf_token }}'
-                    },
-                    body: JSON.stringify({ image: image_data })
-                })
-                    .then(response => response.json())
-                    .then(data => {
-                        if (data.status === "success") {
-                            document.querySelector(".data-div .data-flow").innerHTML = `
-                        <div class="data-box"><span class="text-center">${data.name}</span></div>
-                        <div class="data-box"><span class="text-center">ID: ${data.emp_id}</span></div>
-                        <div class="data-box"><span class="text-center">Designation: ${data.designation}</span></div>
-                        <div class="data-box"><span class="text-center text-success">${data.message}</span></div>
-                    `;
-                        }
-                    })
-                    .catch(error => console.error("Error:", error));
-            }
-        });
-    </script>
 
 </body>
 

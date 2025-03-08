@@ -1,34 +1,40 @@
 {% extends 'base-cam.html' %}
+{% load static %}
 
 {% block start %}
 <div class="main-wrapper-camera bg-blue">
     <div class="container-fluid p-2 mx-auto">
-        {% load static %}
         <a class="navbar-brand animate" href="#">
             <img class="animate-img" src="{% static 'assets/img/logo.png' %}" alt="logo">
         </a>
     </div>
-    <div class="container d-md-flex align-items-center rounded">
-        <!-- Live Camera Feed -->
-        <div class="col-md-6 col-sm-12 bg-dark">
-            <div class="camera-container cam-div">
-                <video id="video" width="100%" autoplay></video>
-                <canvas id="canvas" style="display:none;"></canvas>
-            </div>
-        </div>
 
-        <!-- Employee Details -->
-        <div class="col-md-6 col-sm-12">
-            <div class="camera-container data-div mt-3">
-                <div class="d-flex justify-content-center">
-                    <img id="knownFace" src="{% static 'assets/img/default_user.png' %}" alt="knownface"
-                        class="img-fluid knownface">
+    <div class="container d-md-flex align-items-center rounded">
+        <div class="row w-100">
+            <div class="col-md-6 col-sm-12 bg-dark">
+                <div class="camera-container cam-div">
+                    <div id="video-container" class="border border-5 border-danger rounded">
+                        <img id="video" src="{% url 'video_feed' %}" width="100%">
+                    </div>
+
+
+                    <canvas id="canvas" style="display:none;"></canvas>
+                    <p id="loadingText" style="display: none;" class="text-warning">Processing...</p>
                 </div>
-                <div class="data-flow text-center col-md-6 col-sm-12 mx-auto pt-3">
-                    <div class="data-box"><span id="empName">Waiting for face...</span></div>
-                    <div class="data-box"><span id="empID"></span></div>
-                    <div class="data-box"><span id="empDesignation"></span></div>
-                    <div class="data-box"><span id="attendanceStatus" class="text-success"></span></div>
+            </div>
+
+            <div class="col-md-6 col-sm-12">
+                <div class="camera-container data-div mt-3">
+                    <div class="d-flex justify-content-center">
+                        <img id="knownFace" src="{% static 'assets/img/default_user.png' %}" alt="knownface"
+                            class="img-fluid knownface">
+                    </div>
+                    <div class="data-flow text-center col-md-6 col-sm-12 mx-auto pt-3">
+                        <div class="data-box"><span id="empName"></span></div>
+                        <div class="data-box"><span id="empID"></span></div>
+                        <div class="data-box"><span id="empDesignation"></span></div>
+                        <div class="data-box"><span id="attendanceStatus" class="text-success"></span></div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -36,44 +42,33 @@
 </div>
 
 <script>
-    const video = document.getElementById("video");
-    const canvas = document.getElementById("canvas");
-    const ctx = canvas.getContext("2d");
-
-    // Access webcam
-    navigator.mediaDevices.getUserMedia({ video: true })
-        .then(stream => {
-            video.srcObject = stream;
-        })
-        .catch(err => console.error("Error accessing camera: ", err));
-
-    function captureFrame() {
-        canvas.width = video.videoWidth;
-        canvas.height = video.videoHeight;
-        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-        let imageData = canvas.toDataURL("image/jpeg");
-
-        fetch("{% url 'process_attendance' %}", {
-            method: "POST",
-            headers: { "Content-Type": "application/json", "X-CSRFToken": "{{ csrf_token }}" },
-            body: JSON.stringify({ image: imageData })
-        })
-            .then(response => response.json())
-            .then(data => {
-                if (data.status === "success") {
-                    document.getElementById("knownFace").src = imageData;
-                    document.getElementById("empName").innerText = data.name;
-                    document.getElementById("empID").innerText = "ID: " + data.emp_id;
-                    document.getElementById("empDesignation").innerText = "Designation: " + data.designation;
-                    document.getElementById("attendanceStatus").innerText = data.message;
-                } else {
-                    document.getElementById("attendanceStatus").innerText = "Face not recognized";
+    function updateEmployeeData() {
+        fetch("{% url 'detected_employee' %}")
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error("HTTP error " + response.status);
                 }
+                return response.json();
             })
-            .catch(error => console.error("Error:", error));
+            .then(data => {
+                if (data.error) {
+                    document.getElementById("attendanceStatus").innerText = "Unauthorized";
+                    return;
+                }
+                document.getElementById("empName").innerText = data.name;
+                document.getElementById("empID").innerText = "ID: " + data.emp_id;
+                document.getElementById("empDesignation").innerText = "Designation: " + data.designation;
+                document.getElementById("attendanceStatus").innerText = "Authenticated";
+                document.getElementById("knownFace").src = window.location.origin + data.image_url;
+            })
+            .catch(error => {
+                console.error("Error fetching employee data:", error);
+                document.getElementById("attendanceStatus").innerText = "Error loading data";
+            });
     }
 
-    setInterval(captureFrame, 5000); // Capture every 5 seconds
+    setInterval(updateEmployeeData, 2000);
+
 </script>
 
 {% endblock %}
