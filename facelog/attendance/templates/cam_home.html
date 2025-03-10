@@ -42,8 +42,8 @@
 </div>
 
 <script>
-    function updateEmployeeData() {
-        fetch("{% url 'detected_employee' %}")
+    function updateEmployeeData(empId) {
+        fetch(`/detected_employee/?emp_id=${empId}`)
             .then(response => {
                 if (!response.ok) {
                     throw new Error("HTTP error " + response.status);
@@ -51,19 +51,14 @@
                 return response.json();
             })
             .then(data => {
-                if (data.error) {
-                    document.getElementById("attendanceStatus").innerText = "Unauthorized";
-                    return;
-                }
-                document.getElementById("empName").innerText = data.name;
-                document.getElementById("empID").innerText = "ID: " + data.emp_id;
-                document.getElementById("empDesignation").innerText = "Designation: " + data.designation;
-                document.getElementById("attendanceStatus").innerText = "Authenticated";
-                document.getElementById("knownFace").src = window.location.origin + data.image_url;
+                document.getElementById("empName").textContent = data.name;
+                document.getElementById("empID").textContent = data.emp_id;
+                document.getElementById("empDesignation").textContent = data.designation;
+                document.getElementById("attendanceStatus").textContent = "Attendance Marked ✅";
+                document.getElementById("knownFace").src = data.image_url;
             })
             .catch(error => {
                 console.error("Error fetching employee data:", error);
-                document.getElementById("attendanceStatus").innerText = "Error loading data";
             });
     }
 

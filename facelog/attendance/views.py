@@ -35,7 +35,7 @@ def add_employee(request):
         if form.is_valid():
             employee = form.save()
             print("Saved file path:", employee.image.path)  # Debugging: Check where it's saved
-            return redirect('employee_list')  
+            return redirect(reverse('employee_list'))
         else:
             print("Form errors:", form.errors)  # Debugging: See form errors
 
@@ -49,40 +49,64 @@ def employee_list(request):
     return render(request, 'employee_list.html', {'employees': employees})
 
 # ========================= Face Recognition Setup =========================
-known_faces = []
-known_names = []  # FIXED: Changed from dict to list
-employee_data = {}
+# import os
+# import face_recognition
+# from django.conf import settings
+# from .models import Employee
 
-def load_known_faces():
-    global known_faces, known_names, employee_data
-    known_faces.clear()
-    known_names.clear()
-    employee_data.clear()
+# KNOWN_FACES_DIR = "C:\\Users\\santh\\OneDrive\\Desktop\\chezzion-iot\\facelog\\media\\employees"  
 
-    KNOWN_FACES_DIR = os.path.join(settings.MEDIA_ROOT, "employees")
+# known_faces = []
+# known_names = []
+# employee_data = {}
 
-    for employee in Employee.objects.all():
-        if employee.image:
-            image_path = os.path.join(KNOWN_FACES_DIR, employee.image.name)
-            print(f"🖼️ Checking Image: {image_path}")
+# def load_known_faces():
+#     global known_faces, known_names, employee_data
+#     known_faces.clear()
+#     known_names.clear()
+#     employee_data.clear()
 
-            if os.path.exists(image_path):
-                image = face_recognition.load_image_file(image_path)
-                encodings = face_recognition.face_encodings(image)
+#     # ✅ Load known faces from directory
+#     for filename in os.listdir(KNOWN_FACES_DIR):
+#         if filename.endswith((".jpg", ".jpeg", ".png")):
+#             file_path = os.path.join(KNOWN_FACES_DIR, filename)
+#             image = face_recognition.load_image_file(file_path)
+#             encodings = face_recognition.face_encodings(image)
 
-                if encodings:
-                    known_faces.append(encodings[0])
-                    known_names.append(employee.name)
-                    employee_data[employee.name] = {
-                        "emp_id": employee.emp_id,
-                        "designation": employee.designation,
-                        "image_url": f"{settings.MEDIA_URL}{employee.image.name}"
-                    }
-                    print(f"✔️ Face loaded for {employee.name}")
-                else:
-                    print(f"❌ No face found in {image_path}")
-            else:
-                print(f"❌ Image not found: {image_path}")
+#             if encodings:
+#                 known_faces.append(encodings[0])  # ✅ Only take the first encoding
+#                 known_names.append(os.path.splitext(filename)[0])
+
+#     print(f"✅ Loaded {len(known_faces)} known faces from directory")  # Debugging
+
+#     # ✅ Load employee faces from database
+#     for employee in Employee.objects.all():
+#         if employee.image:
+#             image_path = os.path.normpath(os.path.join(settings.MEDIA_ROOT, employee.image.name))
+#             image_url = f"{settings.MEDIA_URL}{employee.image.name}"
+
+#             print(f"🖼️ Checking Image: {image_path}")
+
+#             if os.path.exists(image_path):
+#                 image = face_recognition.load_image_file(image_path)
+#                 encodings = face_recognition.face_encodings(image)
+
+#                 if encodings:
+#                     known_faces.append(encodings[0])
+#                     known_names.append(employee.name)
+#                     employee_data[employee.name] = {
+#                         "emp_id": employee.emp_id,
+#                         "designation": employee.designation,
+#                         "image_url": image_url
+#                     }
+#                     print(f"✔️ Face loaded for {employee.name}")
+#                 else:
+#                     print(f"❌ No face found in {image_path}")
+#             else:
+#                 print(f"❌ Image not found: {image_path}")
+
+#     print(f"✅ Total Faces Loaded: {len(known_faces)}")
+
 
 
 # ========================= Attendance Processing =========================
@@ -117,40 +141,84 @@ def load_known_faces():
 #     return name  # Ensure the function returns name properly
 
 
-# ========================= Camera Capture =========================
-@csrf_exempt
-def capture_attendance(request):
-    """Captures image from the camera (for testing only)."""
-    cap = cv2.VideoCapture(0)
-    ret, frame = cap.read()
-    cap.release()
 
-    if ret:
-        return JsonResponse({'message': "Face recognized and attendance marked"})
-    
-    return JsonResponse({'message': 'Camera not accessible'}, status=500)
+
+import cv2
+import face_recognition
+import numpy as np
+import os
+from django.http import StreamingHttpResponse, JsonResponse
+from django.shortcuts import render
+from django.conf import settings
+from .models import Employee  # Assuming Employee model exists
+
+# Global variables to store known faces and employee data
+known_faces = []
+known_names = []
+employee_data = {}
+
+# ========================= Load Known Faces =========================
+def load_known_faces():
+    global known_faces, known_names, employee_data
+    known_faces = []
+    known_names = []
+    employee_data = {}
+
+    faces_dir = os.path.join(settings.MEDIA_ROOT, "employees")  # Path where known faces are stored
+
+    if not os.path.exists(faces_dir):
+        print(f"Directory {faces_dir} does not exist. Please add known face images.")
+        return
+
+    for filename in os.listdir(faces_dir):
+        if filename.endswith(".jpg") or filename.endswith(".png"):
+            image_path = os.path.join(faces_dir, filename)
+            image = face_recognition.load_image_file(image_path)
+            if (encoding := face_recognition.face_encodings(image)):
+                known_faces.append(encoding[0])
+                name = os.path.splitext(filename)[0]  # Get filename without extension
+                known_names.append(name)
+
+                # Fetch employee data if available
+                try:
+                    employee = Employee.objects.get(name=name)
+                    employee_data[name] = {"emp_id": employee.emp_id, "designation": employee.designation}
+                except Employee.DoesNotExist:
+                    employee_data[name] = {"emp_id": "Unknown", "designation": "Unknown"}
+
+    print(f"Loaded {len(known_faces)} known faces: {known_names}")
 
 # ========================= Live Video Feed =========================
 def generate_frames():
-    camera = cv2.VideoCapture(0)  # FIXED: Initialize inside function
+    global last_detected_employee
+
+    camera = cv2.VideoCapture(0)  # Change index to 1 or 2 if needed
+    if not camera.isOpened():
+        print("❌ Error: Camera not opening.")
+        return  # Exit function if camera is not accessible
+
+    load_known_faces()
+
     while True:
         success, frame = camera.read()
         if not success:
-            break
+            print("❌ Error: Failed to capture frame.")
+            break  # Stop loop if no frame is captured
 
         rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
         face_locations = face_recognition.face_locations(rgb_frame)
         face_encodings = face_recognition.face_encodings(rgb_frame, face_locations)
 
         for face_encoding, (top, right, bottom, left) in zip(face_encodings, face_locations):
-            matches = face_recognition.compare_faces(known_faces, face_encoding)
+            matches = face_recognition.compare_faces(known_faces, face_encoding, tolerance=0.6)
             name = "Unknown"
 
             if known_faces:
                 face_distances = face_recognition.face_distance(known_faces, face_encoding)
-                best_match_index = np.argmin(face_distances)
-                if matches[best_match_index]:
-                    name = known_names[best_match_index]
+                if any(matches):
+                    best_match_index = np.argmin(face_distances)
+                    if matches[best_match_index]:
+                        name = known_names[best_match_index]
 
             cv2.rectangle(frame, (left, top), (right, bottom), (0, 255, 0), 2)
             cv2.putText(frame, name, (left, top - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.9, (0, 255, 0), 2)
@@ -158,30 +226,29 @@ def generate_frames():
         _, buffer = cv2.imencode('.jpg', frame)
         yield (b'--frame\r\n'
                b'Content-Type: image/jpeg\r\n\r\n' + buffer.tobytes() + b'\r\n')
-    
-    camera.release()  # FIXED: Release camera after use
+
+    camera.release()
+
+
+
 
 def video_feed(request):
     return StreamingHttpResponse(generate_frames(), content_type='multipart/x-mixed-replace; boundary=frame')
 
 # ========================= Employee Detection =========================
 def get_detected_employee(request):
-    emp_id = request.GET.get('emp_id')
+    emp_id = request.GET.get('emp_id', None)
+    if not emp_id or emp_id == "undefined":
+        return JsonResponse({'error': 'Invalid employee ID'}, status=400)
 
-    if not emp_id:
-        return JsonResponse({'error': 'No employee ID provided'}, status=400)
+    last_detected_employee = request.session.get('last_detected_employee', None)
 
-    try:
-        employee = Employee.objects.get(emp_id=emp_id)
-        return JsonResponse({
-            'status': 'success',
-            'emp_id': employee.emp_id,
-            'name': employee.name,
-            'designation': employee.designation,
-            'image_url': f"{settings.MEDIA_URL}{employee.image.name}"
-        })
-    except Employee.DoesNotExist:
-        return JsonResponse({'error': 'Employee not found'}, status=404)
+    if last_detected_employee:
+        return JsonResponse({'employee': last_detected_employee})
+    else:
+        return JsonResponse({'error': 'No employee detected'}, status=404)
 
+
+# ========================= Camera Page =========================
 def camera_page(request):
     return render(request, "camera_home.html")

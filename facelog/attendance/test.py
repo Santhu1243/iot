@@ -4,7 +4,7 @@ import os
 import numpy as np
 
 # Path to the folder containing known face images
-KNOWN_FACES_DIR = "C:\\Users\\santh\\OneDrive\\Desktop\\chezzion-iot\\facelog\\known_faces"
+KNOWN_FACES_DIR = "C:\\Users\\santh\\OneDrive\\Desktop\\chezzion-iot\\facelog\\media\\employees"
 
 # Lists to store known face encodings and their names
 known_faces = []
