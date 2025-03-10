@@ -189,39 +189,58 @@ def load_known_faces():
     print(f"Loaded {len(known_faces)} known faces: {known_names}")
 
 # ========================= Live Video Feed =========================
+import cv2
+import numpy as np
+import face_recognition
+
+last_detected_employee = None  # Store last detected employee globally
+known_faces = []  # Load known face encodings here
+known_names = []  # Load corresponding employee names here
+
 def generate_frames():
     global last_detected_employee
-
+    load_known_faces()
+    
     camera = cv2.VideoCapture(0)  # Change index to 1 or 2 if needed
     if not camera.isOpened():
         print("❌ Error: Camera not opening.")
-        return  # Exit function if camera is not accessible
+        return
 
-    load_known_faces()
+    process_this_frame = True  # Skip frames to improve performance
 
     while True:
         success, frame = camera.read()
         if not success:
             print("❌ Error: Failed to capture frame.")
-            break  # Stop loop if no frame is captured
+            break
+        
+        # ✅ Reduce frame size for faster processing
+        small_frame = cv2.resize(frame, (0, 0), fx=0.5, fy=0.5)
+        rgb_small_frame = cv2.cvtColor(small_frame, cv2.COLOR_BGR2RGB)
 
-        rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-        face_locations = face_recognition.face_locations(rgb_frame)
-        face_encodings = face_recognition.face_encodings(rgb_frame, face_locations)
+        # ✅ Process only every alternate frame (skip frames)
+        if process_this_frame:
+            face_locations = face_recognition.face_locations(rgb_small_frame)
+            face_encodings = face_recognition.face_encodings(rgb_small_frame, face_locations)
 
-        for face_encoding, (top, right, bottom, left) in zip(face_encodings, face_locations):
-            matches = face_recognition.compare_faces(known_faces, face_encoding, tolerance=0.6)
-            name = "Unknown"
+            for face_encoding, (top, right, bottom, left) in zip(face_encodings, face_locations):
+                matches = face_recognition.compare_faces(known_faces, face_encoding, tolerance=0.6)
+                name = "Unknown"
 
-            if known_faces:
-                face_distances = face_recognition.face_distance(known_faces, face_encoding)
                 if any(matches):
+                    face_distances = face_recognition.face_distance(known_faces, face_encoding)
                     best_match_index = np.argmin(face_distances)
                     if matches[best_match_index]:
                         name = known_names[best_match_index]
+                        last_detected_employee = {"name": name}  # Store detected employee details
 
-            cv2.rectangle(frame, (left, top), (right, bottom), (0, 255, 0), 2)
-            cv2.putText(frame, name, (left, top - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.9, (0, 255, 0), 2)
+                # ✅ Scale face coordinates back to full frame size
+                top, right, bottom, left = top * 2, right * 2, bottom * 2, left * 2
+                
+                cv2.rectangle(frame, (left, top), (right, bottom), (0, 255, 0), 2)
+                cv2.putText(frame, name, (left, top - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.9, (0, 255, 0), 2)
+
+        process_this_frame = not process_this_frame  # Skip every alternate frame
 
         _, buffer = cv2.imencode('.jpg', frame)
         yield (b'--frame\r\n'
@@ -232,21 +251,53 @@ def generate_frames():
 
 
 
+
+
 def video_feed(request):
     return StreamingHttpResponse(generate_frames(), content_type='multipart/x-mixed-replace; boundary=frame')
 
 # ========================= Employee Detection =========================
+from django.conf import settings
+from django.http import JsonResponse
+from django.utils.html import escape
+import os
+
+from django.http import JsonResponse
+
+from django.http import JsonResponse
+import logging
+
+# Set up logging
+logger = logging.getLogger(__name__)
+
 def get_detected_employee(request):
-    emp_id = request.GET.get('emp_id', None)
-    if not emp_id or emp_id == "undefined":
-        return JsonResponse({'error': 'Invalid employee ID'}, status=400)
+    global last_detected_employee
 
-    last_detected_employee = request.session.get('last_detected_employee', None)
+    if last_detected_employee is None:
+        logger.warning("No employee data available")
+        return JsonResponse({"error": "No employee detected"}, status=404)
 
-    if last_detected_employee:
-        return JsonResponse({'employee': last_detected_employee})
-    else:
-        return JsonResponse({'error': 'No employee detected'}, status=404)
+    if isinstance(last_detected_employee, dict):
+        emp_id = last_detected_employee.get("name", "Unknown")
+        image_url = last_detected_employee.get("image", "/media/employees/default_user.png")
+        designation = last_detected_employee.get("designation", "Unknown")
+
+        logger.info(f"Employee detected: {emp_id}, Image: {image_url}, Designation: {designation}")
+
+        return JsonResponse({
+            "emp_id": emp_id,
+            "image": image_url,
+            "designation": designation
+        })
+
+    logger.error("Invalid employee data format")
+    return JsonResponse({"error": "Invalid employee data format"}, status=500)
+
+
+
+
+
+
 
 
 # ========================= Camera Page =========================
