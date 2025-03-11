@@ -6,6 +6,7 @@ from django.conf.urls.static import static
 from .views import get_detected_employee
 from .views import add_employee
 from .views import employee_list, video_feed  # Import your employee list view
+from .views import attendance_list
 
 
 
@@ -19,6 +20,8 @@ urlpatterns = [
     path('employees/', employee_list, name='employee_list'),
     path('video_feed/', video_feed, name='video_feed'),
     path('detected_employee/', get_detected_employee, name='detected_employee'),
+    path('attendance-list/', attendance_list, name='attendance_list'),
+
 
 
 ] + static(settings.STATIC_URL, document_root=settings.STATIC_ROOT) + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

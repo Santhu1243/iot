@@ -304,3 +304,31 @@ def get_detected_employee(request):
 def camera_page(request):
     """Render the camera feed page."""
     return render(request, "camera_home.html")
+
+# ========================= attendance list Page =========================
+
+from django.shortcuts import render
+from django.utils.timezone import localtime, now
+from .models import Attendance
+
+def attendance_list(request):
+    # Get date filter from request
+    date_filter = request.GET.get("date", "today")
+    
+    if date_filter == "today":
+        selected_date = localtime(now()).date()
+    elif date_filter == "yesterday":
+        selected_date = localtime(now()).date() - timedelta(days=1)
+    elif date_filter == "custom":
+        selected_date = request.GET.get("custom_date")
+    else:
+        selected_date = localtime(now()).date()
+
+    # Filter attendance records
+    attendances = Attendance.objects.filter(timestamp__date=selected_date)
+
+    return render(request, "attendance_list.html", {
+        "attendances": attendances,
+        "selected_date": selected_date,
+        "date_filter": date_filter,
+    })

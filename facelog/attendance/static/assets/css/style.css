@@ -80,7 +80,7 @@ img.animate-img {
     padding: 20px;
     border-radius: 100%;
     border: 15px dashed #01b3b2;
-    animation: rotate 6s infinitelinear;
+    animation: flip 6s infinite linear;
     position: absolute;
     left: 75px;
     top: 125px;
@@ -112,10 +112,15 @@ img.animate-img {
     --bs-text-opacity: 1;
     color: var(--success) !important;
 }
+
 .hr-main-wrapper {
     display: flex;
     justify-content: center;
     align-items: center;
     height: 85vh;
     background: #01b3b2;
+}
+
+.border-custom {
+    border: 2px solid var(--tertiary);
 }
