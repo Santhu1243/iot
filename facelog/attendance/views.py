@@ -257,18 +257,15 @@ def video_feed(request):
     return StreamingHttpResponse(generate_frames(), content_type='multipart/x-mixed-replace; boundary=frame')
 
 # ========================= Employee Detection =========================
-from django.conf import settings
 from django.http import JsonResponse
-from django.utils.html import escape
-import os
-
-from django.http import JsonResponse
-
-from django.http import JsonResponse
+from django.shortcuts import render
 import logging
 
 # Set up logging
 logger = logging.getLogger(__name__)
+
+# Initialize global variable
+last_detected_employee = None  
 
 def get_detected_employee(request):
     global last_detected_employee
@@ -277,26 +274,27 @@ def get_detected_employee(request):
         logger.warning("No employee data available")
         return JsonResponse({"error": "No employee detected"}, status=404)
 
+    logger.info(f"Raw employee data: {last_detected_employee}")  # Debugging
+
     if isinstance(last_detected_employee, dict):
-        emp_id = last_detected_employee.get("name", "Unknown")
-        image_url = last_detected_employee.get("image", "/media/employees/default_user.png")
+        emp_id = last_detected_employee.get("emp_id", "Unknown")
+        emp_name = last_detected_employee.get("name", "Unknown")  
+        image_path = last_detected_employee.get("image", "/media/employees/default_user.png")
         designation = last_detected_employee.get("designation", "Unknown")
 
-        logger.info(f"Employee detected: {emp_id}, Image: {image_url}, Designation: {designation}")
+        image_url = request.build_absolute_uri(image_path)
+
+        logger.info(f"Returning employee: {emp_id}, {emp_name}, {designation}")
 
         return JsonResponse({
             "emp_id": emp_id,
+            "emp_name": emp_name,  
             "image": image_url,
             "designation": designation
         })
 
     logger.error("Invalid employee data format")
     return JsonResponse({"error": "Invalid employee data format"}, status=500)
-
-
-
-
-
 
 
 

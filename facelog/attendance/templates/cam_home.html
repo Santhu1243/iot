@@ -45,35 +45,28 @@
     var defaultImage = "{% static 'employees/default_user.png' %}";
 
     function updateEmployeeData() {
-        fetch(`/detected_employee/`)
-            .then(response => {
-                if (!response.ok) throw new Error("HTTP error " + response.status);
-                return response.json();
-            })
+        fetch("{% url 'detected_employee' %}")
+            .then(response => response.json())
             .then(data => {
-                if (data.error) {
-                    document.getElementById("empName").textContent = "No Employee Detected";
-                    document.getElementById("empID").textContent = "";
-                    document.getElementById("empDesignation").textContent = "";
-                    document.getElementById("attendanceStatus").textContent = "";
-                    document.getElementById("knownFace").src = defaultImage; // Always set default image
-                } else {
-                    document.getElementById("empName").textContent = data.name || "Unknown";
-                    document.getElementById("empID").textContent = data.emp_id || "Unknown";
-                    document.getElementById("empDesignation").textContent = data.designation || "Unknown";
-                    document.getElementById("attendanceStatus").textContent = "Attendance Marked ✅";
-                    document.getElementById("knownFace").src = data.image ? data.image : defaultImage;
-                }
+                console.log("Received Data:", data); // Debugging log
+                console.log("Image URL:", data.image); // Debugging log
+
+                document.getElementById("empName").textContent = data.emp_name || "Unknown";
+                document.getElementById("empID").textContent = data.emp_id || "Unknown";
+                document.getElementById("empDesignation").textContent = data.designation || "Unknown";
+                document.getElementById("attendanceStatus").textContent = "Attendance Marked ✅";
+
+                // Fix: Ensure absolute image URL
+                document.getElementById("knownFace").src = data.image ? data.image : defaultImage;
             })
-            .catch(error => {
-                console.error("Error fetching employee data:", error);
-                document.getElementById("knownFace").src = defaultImage; // Set default image on error
-            });
+            .catch(error => console.error("Error fetching employee data:", error));
     }
+
 
     setInterval(updateEmployeeData, 2000);
 
 </script>
+
 
 
 {% endblock %}
