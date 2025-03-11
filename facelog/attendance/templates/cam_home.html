@@ -54,7 +54,7 @@
                 document.getElementById("empName").textContent = data.emp_name || "Unknown";
                 document.getElementById("empID").textContent = data.emp_id || "Unknown";
                 document.getElementById("empDesignation").textContent = data.designation || "Unknown";
-                document.getElementById("attendanceStatus").textContent = "Attendance Marked ✅";
+                document.getElementById("attendanceStatus").textContent = "Attendance Marked ✅" + data.attendance_status;
 
                 // Fix: Ensure absolute image URL
                 document.getElementById("knownFace").src = data.image ? data.image : defaultImage;
