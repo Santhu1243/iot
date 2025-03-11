@@ -139,108 +139,78 @@ def employee_list(request):
 #             print("❌ No Match Found")
 
 #     return name  # Ensure the function returns name properly
-
-
-
-
 import cv2
 import face_recognition
 import numpy as np
-import os
+import threading
+import time
 from django.http import StreamingHttpResponse, JsonResponse
 from django.shortcuts import render
-from django.conf import settings
-from .models import Employee  # Assuming Employee model exists
+from .models import Employee  
 
-# Global variables to store known faces and employee data
+# ========================= Load Known Faces =========================
 known_faces = []
 known_names = []
 employee_data = {}
 
-# ========================= Load Known Faces =========================
 def load_known_faces():
+    """Loads employee face encodings and details from the database."""
     global known_faces, known_names, employee_data
-    known_faces = []
-    known_names = []
-    employee_data = {}
 
-    faces_dir = os.path.join(settings.MEDIA_ROOT, "employees")  # Path where known faces are stored
+    employees = Employee.objects.all()
+    known_faces.clear()
+    known_names.clear()
+    employee_data.clear()
 
-    if not os.path.exists(faces_dir):
-        print(f"Directory {faces_dir} does not exist. Please add known face images.")
-        return
+    for emp in employees:
+        try:
+            emp_image = face_recognition.load_image_file(emp.image.path)
+            emp_encoding = face_recognition.face_encodings(emp_image)[0]
+            known_faces.append(emp_encoding)
+            known_names.append(emp.name)
+            employee_data[emp.name] = {
+                "emp_name": emp.name,
+                "emp_id": emp.emp_id,
+                "image": emp.image.url if emp.image else "/media/employees/default_user.png",
+                "designation": emp.designation
+            }
+        except Exception as e:
+            print(f"⚠️ Error loading {emp.name}: {e}")
 
-    for filename in os.listdir(faces_dir):
-        if filename.endswith(".jpg") or filename.endswith(".png"):
-            image_path = os.path.join(faces_dir, filename)
-            image = face_recognition.load_image_file(image_path)
-            if (encoding := face_recognition.face_encodings(image)):
-                known_faces.append(encoding[0])
-                name = os.path.splitext(filename)[0]  # Get filename without extension
-                known_names.append(name)
+# ========================= Multi-threaded Camera Feed =========================
+last_detected_employee = None
+frame_queue = []
+processed_faces = []
+lock = threading.Lock()
 
-                # Fetch employee data if available
-                try:
-                    employee = Employee.objects.get(name=name)
-                    employee_data[name] = {"emp_id": employee.emp_id, "designation": employee.designation}
-                except Employee.DoesNotExist:
-                    employee_data[name] = {"emp_id": "Unknown", "designation": "Unknown"}
-
-    print(f"Loaded {len(known_faces)} known faces: {known_names}")
-
-# ========================= Live Video Feed =========================
-import cv2
-import numpy as np
-import face_recognition
-
-last_detected_employee = None  # Store last detected employee globally
-known_faces = []  # Load known face encodings here
-known_names = []  # Load corresponding employee names here
+cv2.setUseOptimized(True)  # 🔥 Enable OpenCV Optimizations
 
 def generate_frames():
-    global last_detected_employee
+    """Captures video frames and overlays face recognition results in real time."""
+    global frame_queue, processed_faces
+
     load_known_faces()
-    
-    camera = cv2.VideoCapture(0)  # Change index to 1 or 2 if needed
+    camera = cv2.VideoCapture(0)
+
     if not camera.isOpened():
         print("❌ Error: Camera not opening.")
         return
 
-    process_this_frame = True  # Skip frames to improve performance
+    threading.Thread(target=process_faces, daemon=True).start()  # Run face recognition in background
 
     while True:
         success, frame = camera.read()
         if not success:
-            print("❌ Error: Failed to capture frame.")
             break
-        
-        # ✅ Reduce frame size for faster processing
-        small_frame = cv2.resize(frame, (0, 0), fx=0.5, fy=0.5)
-        rgb_small_frame = cv2.cvtColor(small_frame, cv2.COLOR_BGR2RGB)
 
-        # ✅ Process only every alternate frame (skip frames)
-        if process_this_frame:
-            face_locations = face_recognition.face_locations(rgb_small_frame)
-            face_encodings = face_recognition.face_encodings(rgb_small_frame, face_locations)
+        with lock:
+            frame_queue.append(frame)
 
-            for face_encoding, (top, right, bottom, left) in zip(face_encodings, face_locations):
-                matches = face_recognition.compare_faces(known_faces, face_encoding, tolerance=0.6)
-                name = "Unknown"
-
-                if any(matches):
-                    face_distances = face_recognition.face_distance(known_faces, face_encoding)
-                    best_match_index = np.argmin(face_distances)
-                    if matches[best_match_index]:
-                        name = known_names[best_match_index]
-                        last_detected_employee = {"name": name}  # Store detected employee details
-
-                # ✅ Scale face coordinates back to full frame size
-                top, right, bottom, left = top * 2, right * 2, bottom * 2, left * 2
-                
+        # ✅ Overlay detected faces on frame
+        with lock:
+            for (top, right, bottom, left, name) in processed_faces:
                 cv2.rectangle(frame, (left, top), (right, bottom), (0, 255, 0), 2)
                 cv2.putText(frame, name, (left, top - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.9, (0, 255, 0), 2)
-
-        process_this_frame = not process_this_frame  # Skip every alternate frame
 
         _, buffer = cv2.imencode('.jpg', frame)
         yield (b'--frame\r\n'
@@ -248,56 +218,64 @@ def generate_frames():
 
     camera.release()
 
+# ========================= Face Processing =========================
+DEFAULT_EMPLOYEE = {
+    "emp_id": "Unknown",
+    "emp_name": "No Face Detected",
+    "image": "/media/employees/default_user.png",
+    "designation": "N/A"
+}
+last_detected_time = time.time()  # Store last detection time
 
+def process_faces():
+    """Processes frames for face recognition in a separate thread."""
+    global last_detected_employee, processed_faces, last_detected_time
 
+    while True:
+        with lock:
+            if not frame_queue:
+                time.sleep(0.1)  # Prevent CPU overuse
+                continue  # Skip processing if no frame available
 
+            frame = frame_queue.pop(0)  # Get latest frame
 
+        small_frame = cv2.resize(frame, (0, 0), fx=0.5, fy=0.5)  # Resize for faster processing
+        rgb_small_frame = cv2.cvtColor(small_frame, cv2.COLOR_BGR2RGB)
 
+        face_locations = face_recognition.face_locations(rgb_small_frame, model="hog")  # 🔥 Use HOG (faster)
+        face_encodings = face_recognition.face_encodings(rgb_small_frame, face_locations)
+
+        detected_faces = []
+
+        if face_encodings:  # If any face is detected
+            last_detected_time = time.time()  # Update last detected time
+
+        for face_encoding, (top, right, bottom, left) in zip(face_encodings, face_locations):
+            matches = face_recognition.compare_faces(known_faces, face_encoding, tolerance=0.5)
+            name = "Unknown"
+
+            if any(matches):
+                best_match_index = np.argmin(face_recognition.face_distance(known_faces, face_encoding))
+                name = known_names[best_match_index]
+                last_detected_employee = employee_data.get(name, DEFAULT_EMPLOYEE)
+
+            # ✅ Scale coordinates back to full size
+            top, right, bottom, left = top * 2, right * 2, bottom * 2, left * 2
+            detected_faces.append((top, right, bottom, left, name))
+
+        with lock:
+            processed_faces = detected_faces  # ✅ Update global processed faces
+
+        # 🕒 Auto-reset if no face detected for 10 sec
+        if not detected_faces and time.time() - last_detected_time > 1:
+            last_detected_employee = DEFAULT_EMPLOYEE
+
+# ========================= Django Views =========================
 def video_feed(request):
     return StreamingHttpResponse(generate_frames(), content_type='multipart/x-mixed-replace; boundary=frame')
 
-# ========================= Employee Detection =========================
-from django.http import JsonResponse
-from django.shortcuts import render
-import logging
-
-# Set up logging
-logger = logging.getLogger(__name__)
-
-# Initialize global variable
-last_detected_employee = None  
-
 def get_detected_employee(request):
-    global last_detected_employee
+    return JsonResponse(last_detected_employee if last_detected_employee else DEFAULT_EMPLOYEE)
 
-    if last_detected_employee is None:
-        logger.warning("No employee data available")
-        return JsonResponse({"error": "No employee detected"}, status=404)
-
-    logger.info(f"Raw employee data: {last_detected_employee}")  # Debugging
-
-    if isinstance(last_detected_employee, dict):
-        emp_id = last_detected_employee.get("emp_id", "Unknown")
-        emp_name = last_detected_employee.get("name", "Unknown")  
-        image_path = last_detected_employee.get("image", "/media/employees/default_user.png")
-        designation = last_detected_employee.get("designation", "Unknown")
-
-        image_url = request.build_absolute_uri(image_path)
-
-        logger.info(f"Returning employee: {emp_id}, {emp_name}, {designation}")
-
-        return JsonResponse({
-            "emp_id": emp_id,
-            "emp_name": emp_name,  
-            "image": image_url,
-            "designation": designation
-        })
-
-    logger.error("Invalid employee data format")
-    return JsonResponse({"error": "Invalid employee data format"}, status=500)
-
-
-
-# ========================= Camera Page =========================
 def camera_page(request):
     return render(request, "camera_home.html")
