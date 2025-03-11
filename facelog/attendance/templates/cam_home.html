@@ -48,19 +48,18 @@
         fetch("{% url 'detected_employee' %}")
             .then(response => response.json())
             .then(data => {
-                console.log("Received Data:", data); // Debugging log
-                console.log("Image URL:", data.image); // Debugging log
-
                 document.getElementById("empName").textContent = data.emp_name || "Unknown";
                 document.getElementById("empID").textContent = data.emp_id || "Unknown";
                 document.getElementById("empDesignation").textContent = data.designation || "Unknown";
-                document.getElementById("attendanceStatus").textContent = "Attendance Marked ✅" + data.attendance_status;
+                document.getElementById("attendanceStatus").textContent = data.attendance_status;
 
-                // Fix: Ensure absolute image URL
                 document.getElementById("knownFace").src = data.image ? data.image : defaultImage;
             })
             .catch(error => console.error("Error fetching employee data:", error));
     }
+
+    setInterval(updateEmployeeData, 2000);
+
 
 
     setInterval(updateEmployeeData, 2000);

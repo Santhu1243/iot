@@ -202,7 +202,6 @@ threading.Thread(target=periodic_refresh, daemon=True).start()
 
 # ========================= Live Video Feed =========================
 def generate_frames():
-    """Generate frames from the camera feed and process face recognition."""
     global last_detected_employee, last_detected_time
 
     camera = cv2.VideoCapture(0)
@@ -271,21 +270,35 @@ def video_feed(request):
     """Stream video feed with face recognition."""
     return StreamingHttpResponse(generate_frames(), content_type="multipart/x-mixed-replace; boundary=frame")
 
-# ========================= Employee Detection API =========================
+# ========================= Employee Detection API =========================from django.utils.timezone import localtime, now
+from attendance.models import Employee, Attendance
+from django.utils.timezone import localtime, now
+
 def get_detected_employee(request):
-    """Return the last detected employee details as JSON and reset after 2 seconds."""
     global last_detected_employee, last_detected_time
 
     if last_detected_employee is None:
         return JsonResponse({"error": "No employee detected"}, status=404)
 
-    # Check if 2 seconds have passed since last detection
-    if last_detected_time and time.time() - last_detected_time > 2:
-        last_detected_employee = None  # Reset employee details
-        last_detected_time = None
-        return JsonResponse({"error": "No employee detected"}, status=404)
+    emp_id = last_detected_employee["emp_id"]
+    employee = Employee.objects.get(emp_id=emp_id)
+
+    # Check if attendance for today already exists
+    today = localtime(now()).date()
+    attendance_exists = Attendance.objects.filter(employee=employee, timestamp__date=today).exists()
+
+    if not attendance_exists:
+        # Mark attendance
+        Attendance.objects.create(employee=employee)
+        attendance_status = "Attendance Marked ✅"
+    else:
+        attendance_status = "Attendance Already Marked ✅"
+
+    # Return response with attendance status
+    last_detected_employee["attendance_status"] = attendance_status
 
     return JsonResponse(last_detected_employee)
+
 
 # ========================= Camera Page =========================
 def camera_page(request):
