@@ -266,7 +266,6 @@ def process_faces():
         with lock:
             processed_faces = detected_faces  # ✅ Update global processed faces
 
-        # 🕒 Auto-reset if no face detected for 10 sec
         if not detected_faces and time.time() - last_detected_time > 1:
             last_detected_employee = DEFAULT_EMPLOYEE
 
