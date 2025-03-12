@@ -248,22 +248,34 @@ def video_feed(request):
     return StreamingHttpResponse(generate_frames(), content_type="multipart/x-mixed-replace; boundary=frame")
 
 # ========================= Attendance API =========================
+from django.http import JsonResponse
+from django.utils.timezone import localtime, now
+from .models import Employee, Attendance
+
+# Define the global variable at the top
+last_detected_employee = None
+
 def get_detected_employee(request):
     global last_detected_employee
 
-    if not last_detected_employee:
+    if last_detected_employee is None:  # Check if it's initialized
         return JsonResponse({"error": "No employee detected"}, status=404)
 
-    emp = Employee.objects.get(emp_id=last_detected_employee["emp_id"])
-    today = localtime(now()).date()
+    try:
+        emp = Employee.objects.get(emp_id=last_detected_employee["emp_id"])
+        today = localtime(now()).date()
 
-    if not Attendance.objects.filter(employee=emp, timestamp__date=today).exists():
-        Attendance.objects.create(employee=emp)
-        last_detected_employee["attendance_status"] = "Marked ✅"
-    else:
-        last_detected_employee["attendance_status"] = "Already Marked ✅"
+        if not Attendance.objects.filter(employee=emp, timestamp__date=today).exists():
+            Attendance.objects.create(employee=emp)
+            last_detected_employee["attendance_status"] = "Marked ✅"
+        else:
+            last_detected_employee["attendance_status"] = "Already Marked ✅"
 
-    return JsonResponse(last_detected_employee)
+        return JsonResponse(last_detected_employee)
+
+    except Employee.DoesNotExist:
+        return JsonResponse({"error": "Employee not found"}, status=404)
+
 
 # ========================= Camera Page =========================
 def camera_page(request):
