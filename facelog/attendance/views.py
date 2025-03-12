@@ -150,15 +150,15 @@ import threading
 from django.http import StreamingHttpResponse, JsonResponse
 from django.shortcuts import render
 from django.conf import settings
-from attendance.models import Employee  # Assuming Employee model exists
+from attendance.models import Employee  
+from datetime import timedelta
 
 # ========================= Load Known Faces =========================
 known_faces = []
 known_names = []
-employee_data = {}  # Store employee details dynamically
-last_detected_employee = None  # Store last detected employee
-last_detected_time = None  # Store timestamp of last detection
-
+employee_data = {}  
+last_detected_employee = None  
+last_detected_time = None  
 def load_known_faces():
     """Load employee images from the database and extract face encodings."""
     global known_faces, known_names, employee_data
@@ -169,7 +169,7 @@ def load_known_faces():
     employee_data = {}
 
     for emp in employees:
-        image_path = emp.image.path  # Get the full image path
+        image_path = emp.image.path  
         try:
             emp_image = face_recognition.load_image_file(image_path)
             encodings = face_recognition.face_encodings(emp_image)
@@ -189,14 +189,12 @@ def load_known_faces():
         except Exception as e:
             print(f"⚠️ Error processing image for {emp.name}: {e}")
 
-# Load known faces initially
 load_known_faces()
 
-# Refresh known faces every 5 minutes
 def periodic_refresh():
     while True:
         load_known_faces()
-        threading.Event().wait(300)  # Refresh every 5 minutes
+        threading.Event().wait(300)  
 
 threading.Thread(target=periodic_refresh, daemon=True).start()
 
@@ -209,7 +207,7 @@ def generate_frames():
         print("❌ Error: Camera not opening.")
         return
 
-    process_this_frame = True  # Skip every alternate frame to improve speed
+    process_this_frame = True  
 
     while True:
         success, frame = camera.read()
@@ -217,7 +215,6 @@ def generate_frames():
             print("❌ Error: Failed to capture frame.")
             break
 
-        # Reduce frame size for faster processing
         small_frame = cv2.resize(frame, (0, 0), fx=0.5, fy=0.5)
         rgb_small_frame = cv2.cvtColor(small_frame, cv2.COLOR_BGR2RGB)
 
@@ -225,7 +222,7 @@ def generate_frames():
             face_locations = face_recognition.face_locations(rgb_small_frame)
             face_encodings = face_recognition.face_encodings(rgb_small_frame, face_locations)
 
-            detected = False  # Flag to check if a known face is detected
+            detected = False  
 
             for face_encoding, (top, right, bottom, left) in zip(face_encodings, face_locations):
                 matches = face_recognition.compare_faces(known_faces, face_encoding, tolerance=0.4)
@@ -246,18 +243,16 @@ def generate_frames():
                             "image": image,
                             "designation": designation,
                         }
-                        last_detected_time = time.time()  # Store detection time
+                        last_detected_time = time.time()  
                         detected = True
 
-                # Scale back coordinates to full frame size
                 top, right, bottom, left = top * 2, right * 2, bottom * 2, left * 2
                 
-                # Draw a rectangle around detected face and add label
-                color = (0, 255, 0) if detected else (0, 0, 255)  # Green for known, Red for unknown
+                color = (0, 255, 0) if detected else (0, 0, 255)  
                 cv2.rectangle(frame, (left, top), (right, bottom), color, 2)
                 cv2.putText(frame, name, (left, top - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.9, color, 2)
 
-        process_this_frame = not process_this_frame  # Skip alternate frames
+        process_this_frame = not process_this_frame  
 
         _, buffer = cv2.imencode(".jpg", frame)
         yield (b"--frame\r\n"
@@ -271,8 +266,8 @@ def video_feed(request):
     return StreamingHttpResponse(generate_frames(), content_type="multipart/x-mixed-replace; boundary=frame")
 
 # ========================= Employee Detection API =========================from django.utils.timezone import localtime, now
-from attendance.models import Employee, Attendance
 from django.utils.timezone import localtime, now
+from attendance.models import Employee, Attendance
 
 def get_detected_employee(request):
     global last_detected_employee, last_detected_time
@@ -280,24 +275,26 @@ def get_detected_employee(request):
     if last_detected_employee is None:
         return JsonResponse({"error": "No employee detected"}, status=404)
 
+    if last_detected_time and (time.time() - last_detected_time > 1):
+        last_detected_employee = None
+        return JsonResponse({"error": "No employee detected"}, status=404)
+
     emp_id = last_detected_employee["emp_id"]
     employee = Employee.objects.get(emp_id=emp_id)
 
-    # Check if attendance for today already exists
     today = localtime(now()).date()
     attendance_exists = Attendance.objects.filter(employee=employee, timestamp__date=today).exists()
 
     if not attendance_exists:
-        # Mark attendance
         Attendance.objects.create(employee=employee)
         attendance_status = "Attendance Marked ✅"
     else:
         attendance_status = "Attendance Already Marked ✅"
 
-    # Return response with attendance status
     last_detected_employee["attendance_status"] = attendance_status
 
     return JsonResponse(last_detected_employee)
+
 
 
 # ========================= Camera Page =========================
@@ -312,7 +309,6 @@ from django.utils.timezone import localtime, now
 from .models import Attendance
 
 def attendance_list(request):
-    # Get date filter from request
     date_filter = request.GET.get("date", "today")
     
     if date_filter == "today":
@@ -324,7 +320,6 @@ def attendance_list(request):
     else:
         selected_date = localtime(now()).date()
 
-    # Filter attendance records
     attendances = Attendance.objects.filter(timestamp__date=selected_date)
 
     return render(request, "attendance_list.html", {
