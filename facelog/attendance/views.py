@@ -140,7 +140,6 @@ def employee_list(request):
 
 #     return name  # Ensure the function returns name properly
 
-
 import cv2
 import face_recognition
 import numpy as np
@@ -150,15 +149,18 @@ import threading
 from django.http import StreamingHttpResponse, JsonResponse
 from django.shortcuts import render
 from django.conf import settings
-from attendance.models import Employee  
+from attendance.models import Employee, Attendance
+from django.utils.timezone import localtime, now
 from datetime import timedelta
 
 # ========================= Load Known Faces =========================
 known_faces = []
 known_names = []
-employee_data = {}  
-last_detected_employee = None  
-last_detected_time = None  
+employee_data = {}
+last_detected_employee = None
+last_detected_time = None
+lock = threading.Lock()  # Thread-safe variable access
+
 def load_known_faces():
     """Load employee images from the database and extract face encodings."""
     global known_faces, known_names, employee_data
@@ -192,17 +194,19 @@ def load_known_faces():
 load_known_faces()
 
 def periodic_refresh():
+    """Refresh known faces every 5 minutes in a separate thread."""
     while True:
         load_known_faces()
-        threading.Event().wait(300)  
+        time.sleep(300)
 
 threading.Thread(target=periodic_refresh, daemon=True).start()
 
 # ========================= Live Video Feed =========================
 def generate_frames():
+    """Capture live video, detect faces, and recognize employees in real-time."""
     global last_detected_employee, last_detected_time
 
-    camera = cv2.VideoCapture(0)
+    camera = cv2.VideoCapture(0, cv2.CAP_DSHOW)  # Faster video capture for Windows
     if not camera.isOpened():
         print("❌ Error: Camera not opening.")
         return
@@ -219,13 +223,13 @@ def generate_frames():
         rgb_small_frame = cv2.cvtColor(small_frame, cv2.COLOR_BGR2RGB)
 
         if process_this_frame:
-            face_locations = face_recognition.face_locations(rgb_small_frame)
+            face_locations = face_recognition.face_locations(rgb_small_frame, model="hog")  # Faster model
             face_encodings = face_recognition.face_encodings(rgb_small_frame, face_locations)
 
-            detected = False  
+            detected = False
 
             for face_encoding, (top, right, bottom, left) in zip(face_encodings, face_locations):
-                matches = face_recognition.compare_faces(known_faces, face_encoding, tolerance=0.4)
+                matches = face_recognition.compare_faces(known_faces, face_encoding, tolerance=0.5)
                 name, emp_id, image, designation = "Unknown", "Unknown", "/media/employees/default_user.png", "Unknown"
 
                 if any(matches):
@@ -237,18 +241,18 @@ def generate_frames():
                         image = employee_data[name]["image"]
                         designation = employee_data[name]["designation"]
 
-                        last_detected_employee = {
-                            "emp_id": emp_id,
-                            "emp_name": name,
-                            "image": image,
-                            "designation": designation,
-                        }
-                        last_detected_time = time.time()  
-                        detected = True
+                        with lock:
+                            last_detected_employee = {
+                                "emp_id": emp_id,
+                                "emp_name": name,
+                                "image": image,
+                                "designation": designation,
+                            }
+                            last_detected_time = time.time()
+                            detected = True
 
                 top, right, bottom, left = top * 2, right * 2, bottom * 2, left * 2
-                
-                color = (0, 255, 0) if detected else (0, 0, 255)  
+                color = (0, 255, 0) if detected else (0, 0, 255)
                 cv2.rectangle(frame, (left, top), (right, bottom), color, 2)
                 cv2.putText(frame, name, (left, top - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.9, color, 2)
 
@@ -265,11 +269,9 @@ def video_feed(request):
     """Stream video feed with face recognition."""
     return StreamingHttpResponse(generate_frames(), content_type="multipart/x-mixed-replace; boundary=frame")
 
-# ========================= Employee Detection API =========================from django.utils.timezone import localtime, now
-from django.utils.timezone import localtime, now
-from attendance.models import Employee, Attendance
-
+# ========================= Employee Detection API =========================
 def get_detected_employee(request):
+    """Returns the last detected employee and marks attendance."""
     global last_detected_employee, last_detected_time
 
     if last_detected_employee is None:
@@ -280,35 +282,29 @@ def get_detected_employee(request):
         return JsonResponse({"error": "No employee detected"}, status=404)
 
     emp_id = last_detected_employee["emp_id"]
-    employee = Employee.objects.get(emp_id=emp_id)
+    try:
+        employee = Employee.objects.get(emp_id=emp_id)
+    except Employee.DoesNotExist:
+        return JsonResponse({"error": "Employee not found"}, status=404)
 
     today = localtime(now()).date()
-    attendance_exists = Attendance.objects.filter(employee=employee, timestamp__date=today).exists()
-
-    if not attendance_exists:
+    if not Attendance.objects.filter(employee=employee, timestamp__date=today).exists():
         Attendance.objects.create(employee=employee)
         attendance_status = "Attendance Marked ✅"
     else:
         attendance_status = "Attendance Already Marked ✅"
 
     last_detected_employee["attendance_status"] = attendance_status
-
     return JsonResponse(last_detected_employee)
-
-
 
 # ========================= Camera Page =========================
 def camera_page(request):
     """Render the camera feed page."""
     return render(request, "camera_home.html")
 
-# ========================= attendance list Page =========================
-
-from django.shortcuts import render
-from django.utils.timezone import localtime, now
-from .models import Attendance
-
+# ========================= Attendance List Page =========================
 def attendance_list(request):
+    """Display attendance records for today, yesterday, or custom date."""
     date_filter = request.GET.get("date", "today")
     
     if date_filter == "today":
