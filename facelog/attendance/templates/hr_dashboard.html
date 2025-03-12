@@ -3,127 +3,42 @@
 {% block start %}
 
 <body class="vh-100 d-flex flex-column">
-
-
-
     <!-- Main Content (Sidebar + Detail View) -->
     <div class="container-fluid flex-grow-1 d-flex h-100">
-
         <!-- Left Sidebar -->
         <div class="col-md-3 bg-blue p-3 border-end overflow-auto" id="sidebar">
-            <ul class="list-group">
-                <li class="list-group-item list-group-item-action" onclick="showContent('Attendance')">Attendance</li>
-                <li class="list-group-item list-group-item-action" onclick="showContent('Employees')">Employees</li>
-                <li class="list-group-item list-group-item-action"><a class="text-decoration-none text-dark"
-                        href="{% url 'add_employee' %}">Add Employee</a>
-                </li>
-
-
-            </ul>
+            <div class="d-flex align-items-start">
+                <div class="nav flex-column nav-pills me-3" id="v-pills-tab" role="tablist" aria-orientation="vertical">
+                    <button class="nav-link active" id="v-pills-home-tab" data-bs-toggle="pill" data-bs-target="#v-pills-home" type="button" role="tab" aria-controls="v-pills-home" aria-selected="true">Attendance</button>
+                    <button class="nav-link" id="v-pills-profile-tab" data-bs-toggle="pill" data-bs-target="#v-pills-profile" type="button" role="tab" aria-controls="v-pills-profile" aria-selected="false">Employee</button>
+                    <button class="nav-link" id="v-pills-messages-tab" data-bs-toggle="pill" data-bs-target="#v-pills-messages" type="button" role="tab" aria-controls="v-pills-messages" aria-selected="false">Add Employee</button>
+                </div>
+            </div>
         </div>
 
         <!-- Right Side (Detail Page) -->
         <div class="col-md-9 p-4 bg-light" id="content-area">
-            <h3>Welcome to great moves!</h3>
-
+            <h3>Welcome to Great Moves!</h3>
+            <div class="tab-content" id="v-pills-tabContent">
+                <div class="tab-pane fade show active" id="v-pills-home" role="tabpanel" aria-labelledby="v-pills-home-tab" tabindex="0">...</div>
+                <div class="tab-pane fade" id="v-pills-profile" role="tabpanel" aria-labelledby="v-pills-profile-tab" tabindex="0">121212</div>
+                <div class="tab-pane fade" id="v-pills-messages" role="tabpanel" aria-labelledby="v-pills-messages-tab" tabindex="0">
+                    <div class="container">
+                        <div class="col-md-6 col-sm-12 mx-auto">
+                            <form method="post" enctype="multipart/form-data">
+                                {% csrf_token %}
+                                {{ form.as_p }}
+                                <button class="btn btn-primary" type="submit">Add Employee</button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
-
     </div>
 
     <!-- Bootstrap JS -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-
-    <!-- JavaScript for Dynamic Content Update -->
-    <script>
-        let employeeCount = 102; // Start from the last used Employee ID
-
-        function showContent(section) {
-            let tableData = "";
-
-            if (section === "Employees") {
-                tableData = `
-                    <button class="btn btn-success mb-3" onclick="addEmployee()">➕ Add Employee</button>
-                    <table class="table table-bordered" id="employeeTable">
-                        <thead>
-                            <tr>
-                                <th>Emp_ID</th>
-                                <th>Emp_Name</th>
-                                <th>Designation</th>
-                                <th>Schedule</th>
-                                <th>Member Since</th>
-                                <th>Tool</th> <!-- Buttons -->
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr>
-                                <td>101</td>
-                                <td>John Doe</td>
-                                <td>Software Engineer</td>
-                                <td>9 AM - 6 PM</td>
-                                <td>Jan 2023</td>
-                                <td>
-                                    <button class="btn btn-primary btn-sm" onclick="editEmployee(101)">Edit</button>
-                                    <button class="btn btn-danger btn-sm" onclick="deleteEmployee(this)">Delete</button>
-                                </td>
-                            </tr>
-                            <tr>
-                                <td>102</td>
-                                <td>Jane Smith</td>
-                                <td>Project Manager</td>
-                                <td>10 AM - 7 PM</td>
-                                <td>Feb 2022</td>
-                                <td>
-                                    <button class="btn btn-primary btn-sm" onclick="editEmployee(102)">Edit</button>
-                                    <button class="btn btn-danger btn-sm" onclick="deleteEmployee(this)">Delete</button>
-                                </td>
-                            </tr>
-                        </tbody>
-                    </table>`;
-            }
-            else {
-                tableData = `<p>No data available for ${section}.</p>`;
-            }
-
-            document.getElementById('content-area').innerHTML = `
-                <h3>${section}</h3>
-                ${tableData}
-            `;
-        }
-
-        // Function to add a new row dynamically
-        function addEmployee() {
-            employeeCount++; // Increment Employee ID
-
-            let table = document.getElementById("employeeTable").getElementsByTagName('tbody')[0];
-            let newRow = table.insertRow(); // Insert a new row
-
-            newRow.innerHTML = `
-                <td>${employeeCount}</td>
-                <td>New Employee</td>
-                <td>New Role</td>
-                <td>9 AM - 5 PM</td>
-                <td>March 2025</td>
-                <td>
-                    <button class="btn btn-primary btn-sm" onclick="editEmployee(${employeeCount})">Edit</button>
-                    <button class="btn btn-danger btn-sm" onclick="deleteEmployee(this)">Delete</button>
-                </td>
-            `;
-        }
-
-        // Function to delete a row
-        function deleteEmployee(button) {
-            let row = button.parentNode.parentNode;
-            row.parentNode.removeChild(row);
-        }
-
-        // Function to edit employee (Example)
-        function editEmployee(empId) {
-            alert("Edit Employee ID: " + empId);
-        }
-    </script>
-
 </body>
-
-</html>
 
 {% endblock %}

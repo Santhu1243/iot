@@ -10,7 +10,7 @@ class Employee(models.Model):
     name = models.CharField(max_length=255)
     emp_id = models.CharField(max_length=50, unique=True)
     designation = models.CharField(max_length=100)
-    image = models.ImageField(upload_to='employees/')  # Saves in 'media/employees/'
+    image = models.ImageField(upload_to='employees/',null=True)  # Saves in 'media/employees/'
     face_encoding = models.TextField(blank=True, null=True)  # Store encoded face data
 
     def save(self, *args, **kwargs):
