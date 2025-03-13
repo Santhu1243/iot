@@ -189,12 +189,12 @@ def load_known_faces():
 
 load_known_faces()
 
-def periodic_refresh():
-    while True:
-        load_known_faces()
-        time.sleep(300)  # Refresh every 5 minutes
+# def periodic_refresh():
+#     while True:
+#         load_known_faces()
+#         time.sleep(300)  # Refresh every 5 minutes
 
-threading.Thread(target=periodic_refresh, daemon=True).start()
+# threading.Thread(target=periodic_refresh, daemon=True).start()
 
 # ========================= Live Video Feed =========================
 def generate_frames():
