@@ -18,8 +18,8 @@
             <div class="col-md-6 col-lg-4 mb-4">
                 <div class="card shadow-sm">
                     {% if employee.image %}
-                    <img src="{{ employee.image.url }}" class="card-img-top img-fluid rounded"
-                        alt="{{ employee.name }}">
+                    <img src="{{ employee.image.url }}" class="card-img-top img-fluid rounded" alt="{{ employee.name }}"
+                        style="width: 150px; height: 150px;">
                     {% else %}
                     <img src="default-image.jpg" class="card-img-top img-fluid rounded" alt="Default Employee Image">
                     {% endif %}

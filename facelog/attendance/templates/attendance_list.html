@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Employee Attendance</title>
+</head>
+
+<body>
+    <h1>Employee Attendance - {{ selected_date }}</h1>
+
+    <form method="GET" action="">
+        <label>Filter by Date:</label>
+        <select class="form-select" name="date" id="date_filter" onchange="toggleCustomDate()">
+            <option value="today" {% if date_filter == 'today' %}selected{% endif %}>Today</option>
+            <option value="yesterday" {% if date_filter == 'yesterday' %}selected{% endif %}>Yesterday</option>
+            <option value="custom" {% if date_filter == 'custom' %}selected{% endif %}>Custom Date</option>
+        </select>
+
+        <input type="date" id="custom_date" name="custom_date" value="{{ selected_date }}" {% if date_filter !='custom'
+            %}style="display:none" onchange="this.form.submit()">
+    </form>
+
+    <table border="1">
+        <thead>
+            <tr>
+                <th>Employee ID</th>
+                <th>Employee Name</th>
+                <th>Timestamp</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for record in attendances %}
+            <tr>
+                <td>{{ record.employee.id }}</td>
+                <td>{{ record.employee.name }}</td>
+                <td>{{ record.timestamp|date:"Y-m-d H:i:s" }}</td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="3">No attendance records found.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <script>
+        function toggleCustomDate() {
+            var dateFilter = document.getElementById("date_filter").value;
+            var customDateInput = document.getElementById("custom_date");
+
+            if (dateFilter === "custom") {
+                customDateInput.style.display = "inline";
+            } else {
+                customDateInput.style.display = "none";
+                document.forms[0].submit();
+            }
+        }
+    </script>
+</body>
+
+</html>
