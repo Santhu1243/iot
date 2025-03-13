@@ -201,8 +201,8 @@ def generate_frames():
     global last_detected_employee, last_detected_time
 
     camera = cv2.VideoCapture(0, cv2.CAP_V4L2)  # Use V4L2 for USB cameras on Linux
-    camera.set(cv2.CAP_PROP_FRAME_WIDTH, 640)   # Reduce resolution for better performance
-    camera.set(cv2.CAP_PROP_FRAME_HEIGHT, 320)
+    camera.set(cv2.CAP_PROP_FRAME_WIDTH, 320)   # Reduce resolution for better performance
+    camera.set(cv2.CAP_PROP_FRAME_HEIGHT, 240)
     camera.set(cv2.CAP_PROP_FPS, 15)  # Reduce FPS to 15 to improve speed
 
     if not camera.isOpened():
