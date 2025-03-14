@@ -24,7 +24,9 @@
                     <img src="default-image.jpg" class="card-img-top img-fluid rounded" alt="Default Employee Image">
                     {% endif %}
                     <div class="card-body">
-                        <h5 class="card-title">{{ employee.name }}</h5>
+                        <h5 class="card-title">
+                            <a href="{% url 'edit_employee' %}" target="_blank">{{ employee.name }}</a>
+                        </h5>
                         <p class="card-text text-muted">{{ employee.designation }}</p>
                     </div>
                 </div>

@@ -24,6 +24,7 @@ urlpatterns = [
     path('video_feed/', video_feed, name='video_feed'),
     path('detected_employee/', get_detected_employee, name='detected_employee'),
     path('attendance-list/', attendance_list, name='attendance_list'),
+   
 
 
 
@@ -31,6 +32,3 @@ urlpatterns = [
 
 
 
-# Serve static & media files in development
-urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)  
-urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
