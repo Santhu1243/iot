@@ -8,6 +8,8 @@ from .views import add_employee
 from .views import employee_list, video_feed  # Import your employee list view
 from .views import attendance_list
 
+
+
 urlpatterns = [
     path('', views.home, name='home'),
     path('employee-login/', views.employee_login_view, name='camera_page'),
@@ -24,6 +26,8 @@ urlpatterns = [
     path('video_feed/', video_feed, name='video_feed'),
     path('detected_employee/', get_detected_employee, name='detected_employee'),
     path('attendance-list/', attendance_list, name='attendance_list'),
+    
+     
    
 
 

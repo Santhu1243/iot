@@ -12,3 +12,4 @@ class EmployeeForm(forms.ModelForm):
             'designation': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Enter Designation'}),
             'image': forms.FileInput(attrs={'class': 'form-control-file'}),
         }
+

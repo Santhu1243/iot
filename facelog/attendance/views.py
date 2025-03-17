@@ -1,4 +1,4 @@
-from django.shortcuts import render, redirect
+from django.shortcuts import render, redirect, get_object_or_404
 from django.http import JsonResponse, StreamingHttpResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.conf import settings
@@ -13,6 +13,9 @@ import face_recognition
 import json
 import os
 from datetime import datetime
+from django.utils.timezone import now
+from pytz import timezone
+
 
 # ========================= Home Views =========================
 def home(request):
@@ -306,23 +309,52 @@ def camera_page(request):
 
 # ========================= attendance list Page =========================
 
+from datetime import datetime, timedelta
 from django.shortcuts import render
 from django.utils.timezone import localtime, now
+import pytz
+from .models import Attendance
+
+from django.shortcuts import render
+from django.utils import timezone
+from datetime import datetime, timedelta
+import pytz
 from .models import Attendance
 
 def attendance_list(request):
-    date_filter = request.GET.get("date", "today")
+    # Get India timezone
+    india_tz = pytz.timezone("Asia/Kolkata")
     
-    if date_filter == "today":
-        selected_date = localtime(now()).date()
-    elif date_filter == "yesterday":
-        selected_date = localtime(now()).date() - timedelta(days=1)
-    elif date_filter == "custom":
-        selected_date = request.GET.get("custom_date")
-    else:
-        selected_date = localtime(now()).date()
+    # Get current time in IST
+    current_time = timezone.now().astimezone(india_tz)
 
-    attendances = Attendance.objects.filter(timestamp__date=selected_date)
+    # Get date filter from request
+    date_filter = request.GET.get("date", "today")
+
+    # Determine the selected date
+    if date_filter == "today":
+        selected_date = current_time.date()
+    elif date_filter == "yesterday":
+        selected_date = current_time.date() - timedelta(days=1)
+    elif date_filter == "custom":
+        custom_date_str = request.GET.get("custom_date")
+        try:
+            selected_date = datetime.strptime(custom_date_str, "%Y-%m-%d").date()
+        except (TypeError, ValueError):
+            selected_date = current_time.date()
+    else:
+        selected_date = current_time.date()
+
+    # Convert selected_date to a datetime range in IST
+    start_datetime = india_tz.localize(datetime.combine(selected_date, datetime.min.time()))
+    end_datetime = india_tz.localize(datetime.combine(selected_date, datetime.max.time()))
+
+    # Convert range to UTC for filtering
+    start_utc = start_datetime.astimezone(pytz.utc)
+    end_utc = end_datetime.astimezone(pytz.utc)
+
+    # Fetch attendance records filtered by converted UTC time
+    attendances = Attendance.objects.filter(timestamp__gte=start_utc, timestamp__lte=end_utc)
 
     return render(request, "attendance_list.html", {
         "attendances": attendances,
