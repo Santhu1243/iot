@@ -25,27 +25,80 @@ def cam_home(request):
     return render(request, 'cam_home.html')
 
 
+from django.shortcuts import render
+from .models import Employee, Attendance
+from .forms import EmployeeForm
+from datetime import datetime
+
 def hr_dashboard_view(request):
-    return render(request, 'hr_dashboard.html')
+    employees = Employee.objects.all()
+    
+    # Handling Attendance Filtering
+    date_filter = request.GET.get('date', 'today')
+    selected_date = datetime.today().date()
+
+    if date_filter == 'yesterday':
+        selected_date -= timedelta(days=1)
+    elif date_filter == 'custom':
+        selected_date = request.GET.get('custom_date', selected_date)
+
+    attendances = Attendance.objects.filter(timestamp__date=selected_date)
+
+    # Handling Employee Addition
+    if request.method == 'POST':
+        form = EmployeeForm(request.POST, request.FILES)
+        if form.is_valid():
+            form.save()
+    else:
+        form = EmployeeForm()
+
+    context = {
+        'employees': employees,
+        'attendances': attendances,
+        'form': form,
+        'selected_date': selected_date,
+        'date_filter': date_filter,
+    }
+    
+    return render(request, 'hr_dashboard.html', context)
+
 
 def employee_login_view(request):
     return render(request, 'cam_home.html')
 
 # ========================= Employee Views =========================
+# def add_employee(request):
+#     if request.method == "POST":
+#         print("FILES:", request.FILES)  # Debugging: See if the file is being uploaded
+#         form = EmployeeForm(request.POST, request.FILES)
+#         if form.is_valid():
+#             employee = form.save()
+#             print("Saved file path:", employee.image.path)  # Debugging: Check where it's saved
+#             return redirect(reverse('employee_list'))
+#         else:
+#             print("Form errors:", form.errors)  # Debugging: See form errors
+
+#     else:
+#         form = EmployeeForm()
+#     return render(request, 'add_employee.html', {'form': form})
+from django.http import JsonResponse
+
 def add_employee(request):
     if request.method == "POST":
-        print("FILES:", request.FILES)  # Debugging: See if the file is being uploaded
         form = EmployeeForm(request.POST, request.FILES)
         if form.is_valid():
             employee = form.save()
-            print("Saved file path:", employee.image.path)  # Debugging: Check where it's saved
-            return redirect(reverse('employee_list'))
+            return JsonResponse({
+                "success": True,
+                "name": employee.name,
+                "emp_id": employee.emp_id,
+                "designation": employee.designation,
+                "image_url": employee.image.url if employee.image else None
+            })
         else:
-            print("Form errors:", form.errors)  # Debugging: See form errors
+            return JsonResponse({"success": False, "errors": form.errors}, status=400)
 
-    else:
-        form = EmployeeForm()
-    return render(request, 'add_employee.html', {'form': form})
+    return JsonResponse({"success": False, "message": "Invalid request"}, status=400)
 
 
 
@@ -53,6 +106,17 @@ def employee_list(request):
     employees = Employee.objects.all()
     return render(request, 'employee_list.html', {'employees': employees})
 
+def get_employees(request):
+    employees = Employee.objects.all()
+    employee_data = [
+        {
+            "name": emp.name,
+            "designation": emp.designation,
+            "image_url": emp.image.url if emp.image else "/static/default-image.jpg"
+        }
+        for emp in employees
+    ]
+    return JsonResponse({"employees": employee_data})
 # ========================= Face Recognition Setup =========================
 # import os
 # import face_recognition
@@ -321,17 +385,12 @@ from datetime import datetime, timedelta
 import pytz
 from .models import Attendance
 
-def attendance_list(request):
-    # Get India timezone
+def api_attendance_list(request):
     india_tz = pytz.timezone("Asia/Kolkata")
-    
-    # Get current time in IST
     current_time = timezone.now().astimezone(india_tz)
 
-    # Get date filter from request
     date_filter = request.GET.get("date", "today")
 
-    # Determine the selected date
     if date_filter == "today":
         selected_date = current_time.date()
     elif date_filter == "yesterday":
@@ -345,19 +404,20 @@ def attendance_list(request):
     else:
         selected_date = current_time.date()
 
-    # Convert selected_date to a datetime range in IST
     start_datetime = india_tz.localize(datetime.combine(selected_date, datetime.min.time()))
     end_datetime = india_tz.localize(datetime.combine(selected_date, datetime.max.time()))
 
-    # Convert range to UTC for filtering
     start_utc = start_datetime.astimezone(pytz.utc)
     end_utc = end_datetime.astimezone(pytz.utc)
 
-    # Fetch attendance records filtered by converted UTC time
     attendances = Attendance.objects.filter(timestamp__gte=start_utc, timestamp__lte=end_utc)
 
-    return render(request, "attendance_list.html", {
-        "attendances": attendances,
-        "selected_date": selected_date,
-        "date_filter": date_filter,
-    })
+    data = [
+        {
+            "id": record.employee.id,
+            "name": record.employee.name,
+            "timestamp": record.timestamp.astimezone(india_tz).strftime("%Y-%m-%d %H:%M:%S")
+        }
+        for record in attendances
+    ]
+    return JsonResponse({"attendances": data})

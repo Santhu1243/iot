@@ -12,11 +12,9 @@
         <!-- Left Sidebar -->
         <div class="col-md-3 bg-blue p-3 border-end overflow-auto" id="sidebar">
             <ul class="list-group">
-                <li class="list-group-item list-group-item-action" onclick="showContent('Attendance')">Attendance</li>
-                <li class="list-group-item list-group-item-action"  onclick="showContent('Employee')">Employees</li>
-                <li class="list-group-item list-group-item-action">
-                <a class="text-decoration-none text-dark" href="{% url 'add_employee' %}">Add Employee</a>
-                </li>
+                    <li class="list-group-item list-group-item-action" onclick="showContent('Attendance')">Attendance</li>
+                <li class="list-group-item list-group-item-action" onclick="showContent('Employees')">Employees</li>
+                <li class="list-group-item list-group-item-action" onclick="showContent('Add employee')">Add Employee</li>
 
 
             </ul>
@@ -35,54 +33,144 @@
 
     <!-- JavaScript for Dynamic Content Update -->
     <script>
-    document.addEventListener("DOMContentLoaded", function () {
-        fetchEmployees(); // Fetch employees on page load
-    });
+function showContent(option) {
+    let contentArea = document.getElementById("content-area");
 
-    function fetchEmployees() {
-        fetch('/add-employee/') // Fetch data from Django API
-        .then(response => response.json())
-        .then(data => {
-            let tableBody = document.getElementById("employeeTableBody");
-            tableBody.innerHTML = ""; // Clear existing data
+    if (option === "Attendance") {
+        contentArea.innerHTML = "<h3>Loading Attendance Records...</h3>";
 
-            data.forEach(employee => {
-                let row = `
-                    <tr>
-                        <td>${employee.name}</td>
-                        <td>${employee.emp_id}</td>
-                        <td>${employee.designation}</td>
-                        <td>${employee.image}</td>
-                        <td>
-                            <button class="btn btn-primary btn-sm" onclick="editEmployee(${employee.emp_id})">Edit</button>
-                            <button class="btn btn-danger btn-sm" onclick="deleteEmployee(${employee.emp_id}, this)">Delete</button>
-                        </td>
-                    </tr>
+        // Fetch attendance data from Django API
+        fetch("/api/attendance_list/")
+            .then(response => response.json())
+            .then(data => {
+                let tableHtml = `
+                    <h3>Attendance Records</h3>
+                    <table class="table table-bordered table-striped">
+                        <thead class="thead-dark">
+                            <tr>
+                                <th>Employee ID</th>
+                                <th>Employee Name</th>
+                                <th>Date</th>
+                                <th>Time</th>
+                            </tr>
+                        </thead>
+                        <tbody>
                 `;
-                tableBody.innerHTML += row;
+
+                if (data.attendances.length === 0) {
+                    tableHtml += `<tr><td colspan="4" class="text-center">No attendance records found.</td></tr>`;
+                } else {
+                    data.attendances.forEach(record => {
+                        tableHtml += `
+                            <tr>
+                                <td>${record.id}</td>
+                                <td>${record.name}</td>
+                                <td>${record.timestamp.split(" ")[0]}</td>
+                                <td>${record.timestamp.split(" ")[1]}</td>
+                            </tr>
+                        `;
+                    });
+                }
+
+                tableHtml += `</tbody></table>`;
+                contentArea.innerHTML = tableHtml;
+            })
+            .catch(error => {
+                console.error("Error fetching attendance:", error);
+                contentArea.innerHTML = `<p class="text-danger">Error loading attendance records.</p>`;
             });
-        })
-        .catch(error => console.error("Error fetching employees:", error));
-    }
+    } 
 
-    function editEmployee(empId) {
-        alert("Edit Employee ID: " + empId);
-    }
 
-    function deleteEmployee(empId, button) {
-        if (confirm("Are you sure you want to delete this employee?")) {
-            fetch(`/add-employee/${empId}/`, { method: 'DELETE' })
+    
+    else if (option === "Employees") {
+        contentArea.innerHTML = "<h3>Loading Employee List...</h3>";
+
+        // Fetch employees from Django API
+        fetch("/api/employees/")
+            .then(response => response.json())
+            .then(data => {
+                let employeesHtml = `
+                    <h3>Employee List</h3>
+                    <div class="row">
+                `;
+
+                data.employees.forEach(emp => {
+                    employeesHtml += `
+                        <div class="col-md-6 col-lg-4 mb-4">
+                            <div class="card shadow-sm">
+                                <img src="${emp.image_url}" class="card-img-top img-fluid rounded" alt="${emp.name}" 
+                                    style="width: 150px; height: 150px;">
+                                <div class="card-body">
+                                    <h5 class="card-title">${emp.name}</h5>
+                                    <p class="card-text text-muted">${emp.designation}</p>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                });
+
+                employeesHtml += "</div>";  // Close row div
+                contentArea.innerHTML = employeesHtml;
+            })
+            .catch(error => {
+                contentArea.innerHTML = `<p>Error loading employees.</p>`;
+                console.error("Error fetching employees:", error);
+            });
+    } 
+    else if (option === "Add employee") {
+        contentArea.innerHTML = `
+            <h3>Add Employee</h3>
+            <form id="employeeForm" enctype="multipart/form-data">
+                {% csrf_token %}
+                <label>Name:</label>
+                <input type="text" name="name" required class="form-control mb-2">
+
+                <label>Emp ID:</label>
+                <input type="text" name="emp_id" required class="form-control mb-2">
+
+                <label>Designation:</label>
+                <input type="text" name="designation" required class="form-control mb-2">
+
+                <label>Image:</label>
+                <input type="file" name="image" class="form-control mb-2">
+
+                <button type="submit" class="btn btn-primary">Submit</button>
+            </form>
+        `;
+        
+        document.getElementById("employeeForm").addEventListener("submit", function(event) {
+            event.preventDefault();  // Prevent page reload
+            let formData = new FormData(this);
+
+            fetch("{% url 'add_employee' %}", {
+                method: "POST",
+                body: formData,
+                headers: {
+                    "X-CSRFToken": document.querySelector("[name=csrfmiddlewaretoken]").value
+                }
+            })
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
-                    button.parentNode.parentNode.remove(); // Remove row on success
+                    contentArea.innerHTML = `
+                        <h3>Employee Added</h3>
+                        <p><strong>Name:</strong> ${data.name}</p>
+                        <p><strong>Emp ID:</strong> ${data.emp_id}</p>
+                        <p><strong>Designation:</strong> ${data.designation}</p>
+                        ${data.image_url ? `<img src="${data.image_url}" class="img-thumbnail mt-2" alt="Employee Image">` : ''}
+                    `;
+                } else {
+                    alert("Error: " + JSON.stringify(data.errors));
                 }
             })
-            .catch(error => console.error("Error deleting employee:", error));
-        }
+            .catch(error => alert("Something went wrong!"));
+        });
     }
+}
 </script>
 
+     
 </body>
 
 </html>
