@@ -35,7 +35,7 @@ def hr_dashboard_view(request):
     
     # Handling Attendance Filtering
     date_filter = request.GET.get('date', 'today')
-    selected_date = datetime.today().date()
+    selected_date = datetime.now().date()
 
     if date_filter == 'yesterday':
         selected_date -= timedelta(days=1)
