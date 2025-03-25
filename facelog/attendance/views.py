@@ -217,10 +217,12 @@ import os
 import time
 import threading
 from django.http import StreamingHttpResponse, JsonResponse
+import dlib
 from django.shortcuts import render
 from django.conf import settings
 from attendance.models import Employee  
 from datetime import timedelta
+from scipy.spatial import distance as dist
 
 # ========================= Load Known Faces =========================
 known_faces = []
@@ -260,16 +262,168 @@ def load_known_faces():
 
 load_known_faces()
 
-def periodic_refresh():
-    while True:
-        load_known_faces()
-        threading.Event().wait(300)  
+# def periodic_refresh():
+#     while True:
+#         load_known_faces()
+#         threading.Event().wait(300)  
 
-threading.Thread(target=periodic_refresh, daemon=True).start()
+# threading.Thread(target=periodic_refresh, daemon=True).start()
+
+# # ========================= Live Video Feed =========================
+# import cv2
+# import dlib
+# import time
+# import numpy as np
+# import face_recognition
+# from scipy.spatial import distance as dist
+
+# # Load Dlib face detector and 68-landmark predictor
+# detector = dlib.get_frontal_face_detector()
+# predictor = dlib.shape_predictor("C:\\Users\\-__-\\Desktop\\chezz_iot\\iot\\facelog\\attendance\\shape_predictor_68_face_landmarks.dat")
+
+# # Define eye landmark indices
+# LEFT_EYE = list(range(36, 42))
+# RIGHT_EYE = list(range(42, 48))
+
+# # Blink detection thresholds
+# BLINK_THRESHOLD = 0.2   
+# BLINK_FRAMES = 3      
+# blink_counter = 0        
+
+# # Employee details (Replace with database integration)
+# known_faces = []  
+# known_names = []  
+# employee_data = {}  
+
+# # Eye Aspect Ratio (EAR) calculation
+# def calculate_ear(eye):
+#     """Calculates the Eye Aspect Ratio (EAR) to detect blinks."""
+#     A = dist.euclidean(eye[1], eye[5])
+#     B = dist.euclidean(eye[2], eye[4])
+#     C = dist.euclidean(eye[0], eye[3])
+#     return (A + B) / (2.0 * C)
+
+
+# def generate_frames(): 
+#     global last_detected_employee, last_detected_time, blink_counter
+
+#     camera = cv2.VideoCapture(0)
+#     if not camera.isOpened():
+#         print("❌ Error: Camera not opening.")
+#         return
+    
+#     while True:
+#         success, frame = camera.read()
+#         if not success:
+#             print("❌ Error: Failed to capture frame.")
+#             break
+        
+#         # small_frame = cv2.resize(frame, (0, 0), fx=0.5, fy=0.5)
+#         # gray = cv2.cvtColor(small_frame, cv2.COLOR_BGR2GRAY)
+
+#         # faces = detector(gray)
+
+#         # blink_detected = False  # Flag to check if a blink has been detected
+
+#         # for face in faces:
+#         #     landmarks = predictor(gray, face)
+
+#         #     # Extract left and right eye coordinates
+#         #     left_eye = np.array([(landmarks.part(i).x, landmarks.part(i).y) for i in LEFT_EYE])
+#         #     right_eye = np.array([(landmarks.part(i).x, landmarks.part(i).y) for i in RIGHT_EYE])
+
+#         #     # Calculate EAR for both eyes
+#         #     left_ear = calculate_ear(left_eye)
+#         #     right_ear = calculate_ear(right_eye)
+#         #     avg_ear = (left_ear + right_ear) / 2.0
+
+#         #     # Blink detection logic
+#         #     if avg_ear < BLINK_THRESHOLD:
+#         #         blink_counter += 1  # Increment counter if eyes are closed
+#         #     else:
+#         #         if blink_counter >= BLINK_FRAMES:  # Blink detected
+#         #             print("✅ Blink detected! Proceeding with face recognition...")
+#         #             blink_detected = True
+#         #         blink_counter = 0  # Reset blink counter when eyes open
+
+#         # # Perform face recognition **ONLY AFTER a blink is detected**
+#         # if blink_detected:
+#         #     face_locations = face_recognition.face_locations(gray)
+#         #     face_encodings = face_recognition.face_encodings(gray, face_locations)
+
+#         #     detected = False  
+
+#         #     for face_encoding, (top, right, bottom, left) in zip(face_encodings, face_locations):
+#         #         matches = face_recognition.compare_faces(known_faces, face_encoding, tolerance=0.4)
+#         #         name, emp_id, image, designation = "Unknown", "Unknown", "/media/employees/default_user.png", "Unknown"
+
+#         #         if any(matches):
+#         #             face_distances = face_recognition.face_distance(known_faces, face_encoding)
+#         #             best_match_index = np.argmin(face_distances)
+#         #             if matches[best_match_index]:
+#         #                 name = known_names[best_match_index]
+#         #                 emp_id = employee_data[name]["emp_id"]
+#         #                 image = employee_data[name]["image"]
+#         #                 designation = employee_data[name]["designation"]
+#         #                 detected = True
+
+#         #                 last_detected_employee = {
+#         #                     "emp_id": emp_id,
+#         #                     "emp_name": name,
+#         #                     "image": image,
+#         #                     "designation": designation,
+#         #                 }
+#         #                 last_detected_time = time.time()
+
+#         #         # Scale back the face coordinates
+#         #         top, right, bottom, left = top * 2, right * 2, bottom * 2, left * 2
+
+#         #         # Draw rectangle on detected face only after blink
+#         #         color = (0, 255, 0) if detected else (0, 0, 255)  
+#         #         cv2.rectangle(frame, (left, top), (right, bottom), color, 2)
+#         #         cv2.putText(frame, name, (left, top - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.9, color, 2)
+
+#         # _, buffer = cv2.imencode(".jpg", frame)
+#         # yield (b"--frame\r\n"
+#         #        b"Content-Type: image/jpeg\r\n\r\n" + buffer.tobytes() + b"\r\n")
+
+#     camera.release()
+
 
 # ========================= Live Video Feed =========================
+import cv2
+import numpy as np
+import face_recognition
+import dlib
+import time
+
+# Constants
+BLINK_THRESHOLD = 0.2
+BLINK_FRAMES = 3
+
+# Load face predictor
+predictor_path = "C:\\Users\\-__-\\Desktop\\chezz_iot\\iot\\facelog\\attendance\\shape_predictor_68_face_landmarks.dat"
+detector = dlib.get_frontal_face_detector()
+predictor = dlib.shape_predictor(predictor_path)
+
+# Define eye landmark indices
+LEFT_EYE = list(range(42, 48))
+RIGHT_EYE = list(range(36, 42))
+
+# Global Variables
+blink_counter = 0
+last_detected_employee = None
+last_detected_time = None
+
+def calculate_ear(eye):
+    """Calculate the Eye Aspect Ratio (EAR) to detect blinking."""
+    A = np.linalg.norm(eye[1] - eye[5])
+    B = np.linalg.norm(eye[2] - eye[4])
+    C = np.linalg.norm(eye[0] - eye[3])
+    return (A + B) / (2.0 * C)
+
 def generate_frames():
-    global last_detected_employee, last_detected_time
+    global last_detected_employee, last_detected_time, blink_counter
 
     camera = cv2.VideoCapture(0)
     if not camera.isOpened():
@@ -284,18 +438,48 @@ def generate_frames():
             print("❌ Error: Failed to capture frame.")
             break
 
-        small_frame = cv2.resize(frame, (0, 0), fx=0.5, fy=0.5)
-        rgb_small_frame = cv2.cvtColor(small_frame, cv2.COLOR_BGR2RGB)
+        small_frame = cv2.resize(frame, (0, 0), fx=0.5, fy=0.5)  # Downscale for faster processing
+        gray = cv2.cvtColor(small_frame, cv2.COLOR_BGR2GRAY)  
 
         if process_this_frame:
-            face_locations = face_recognition.face_locations(rgb_small_frame)
-            face_encodings = face_recognition.face_encodings(rgb_small_frame, face_locations)
+            faces = detector(gray)
 
-            detected = False  
+            blink_detected = False  # Reset blink detection per frame
 
-            for face_encoding, (top, right, bottom, left) in zip(face_encodings, face_locations):
-                matches = face_recognition.compare_faces(known_faces, face_encoding, tolerance=0.4)
-                name, emp_id, image, designation = "Unknown", "Unknown", "/media/employees/default_user.png", "Unknown"
+            for face in faces:
+                x, y, w, h = (face.left(), face.top(), face.width(), face.height())
+
+                # Draw rectangle around detected face before processing
+                cv2.rectangle(frame, (x*2, y*2), ((x + w)*2, (y + h)*2), (255, 0, 0), 2)
+
+                landmarks = predictor(gray, face)
+
+                # Extract eye coordinates
+                left_eye = np.array([(landmarks.part(i).x, landmarks.part(i).y) for i in LEFT_EYE])
+                right_eye = np.array([(landmarks.part(i).x, landmarks.part(i).y) for i in RIGHT_EYE])
+
+                # Calculate EAR
+                avg_ear = (calculate_ear(left_eye) + calculate_ear(right_eye)) / 2.0
+
+                if avg_ear < BLINK_THRESHOLD:
+                    blink_counter += 1
+                else:
+                    if blink_counter >= BLINK_FRAMES:
+                        print("✅ Blink detected! Proceeding with face recognition...")
+                        blink_detected = True
+                    blink_counter = 0
+
+            # Face Recognition after blink detection
+            if blink_detected:
+                rgb_frame = cv2.cvtColor(small_frame, cv2.COLOR_BGR2RGB)  
+                face_locations = face_recognition.face_locations(rgb_frame)
+                face_encodings = face_recognition.face_encodings(rgb_frame, face_locations)
+
+                detected = False
+
+                for face_encoding, (top, right, bottom, left) in zip(face_encodings, face_locations):
+                    matches = face_recognition.compare_faces(known_faces, face_encoding, tolerance=0.4)
+                    name, emp_id, image, designation = "Unknown", "Unknown", "/media/employees/default_user.png", "Unknown"
 
                 if any(matches):
                     face_distances = face_recognition.face_distance(known_faces, face_encoding)
@@ -305,21 +489,22 @@ def generate_frames():
                         emp_id = employee_data[name]["emp_id"]
                         image = employee_data[name]["image"]
                         designation = employee_data[name]["designation"]
-
                         last_detected_employee = {
                             "emp_id": emp_id,
                             "emp_name": name,
                             "image": image,
                             "designation": designation,
-                        }
-                        last_detected_time = time.time()  
+                            }
+                        last_detected_time = time.time()
                         detected = True
 
-                top, right, bottom, left = top * 2, right * 2, bottom * 2, left * 2
-                
-                color = (0, 255, 0) if detected else (0, 0, 255)  
-                cv2.rectangle(frame, (left, top), (right, bottom), color, 2)
-                cv2.putText(frame, name, (left, top - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.9, color, 2)
+                    # Scale coordinates back to full frame
+                    top, right, bottom, left = top * 2, right * 2, bottom * 2, left * 2
+
+                    # Draw rectangle and label
+                    color = (0, 255, 0) if detected else (0, 0, 255)
+                    cv2.rectangle(frame, (left, top), (right, bottom), color, 2)
+                    cv2.putText(frame, name, (left, top - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.9, color, 2)
 
         process_this_frame = not process_this_frame  
 
@@ -328,6 +513,15 @@ def generate_frames():
                b"Content-Type: image/jpeg\r\n\r\n" + buffer.tobytes() + b"\r\n")
 
     camera.release()
+    cv2.destroyAllWindows()
+
+ 
+
+
+def mark_attendance(name):
+    """Simulated attendance marking (Replace with database insertion)"""
+    timestamp = time.strftime("%Y-%m-%d %H:%M:%S")
+    print(f"✅ Attendance Marked: {name} at {timestamp}")
 
 # ========================= Video Streaming View =========================
 def video_feed(request):
@@ -378,7 +572,6 @@ from django.shortcuts import render
 from django.utils.timezone import localtime, now
 import pytz
 from .models import Attendance
-
 from django.shortcuts import render
 from django.utils import timezone
 from datetime import datetime, timedelta
@@ -421,3 +614,4 @@ def api_attendance_list(request):
         for record in attendances
     ]
     return JsonResponse({"attendances": data})
+
