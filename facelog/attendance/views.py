@@ -262,12 +262,12 @@ def load_known_faces():
 
 load_known_faces()
 
-# def periodic_refresh():
-#     while True:
-#         load_known_faces()
-#         threading.Event().wait(300)  
+def periodic_refresh():
+    while True:
+        load_known_faces()
+        threading.Event().wait(300)  
 
-# threading.Thread(target=periodic_refresh, daemon=True).start()
+threading.Thread(target=periodic_refresh, daemon=True).start()
 
 # # ========================= Live Video Feed =========================
 # import cv2
@@ -568,50 +568,49 @@ def camera_page(request):
 # ========================= attendance list Page =========================
 
 from datetime import datetime, timedelta
-from django.shortcuts import render
-from django.utils.timezone import localtime, now
-import pytz
-from .models import Attendance
-from django.shortcuts import render
+from django.http import JsonResponse
 from django.utils import timezone
-from datetime import datetime, timedelta
 import pytz
 from .models import Attendance
 
 def api_attendance_list(request):
+    """Fetches attendance records based on a selected date."""
+    
     india_tz = pytz.timezone("Asia/Kolkata")
-    current_time = timezone.now().astimezone(india_tz)
 
-    date_filter = request.GET.get("date", "today")
+    # Get the selected date from request parameters
+    selected_date_str = request.GET.get("date")
 
-    if date_filter == "today":
-        selected_date = current_time.date()
-    elif date_filter == "yesterday":
-        selected_date = current_time.date() - timedelta(days=1)
-    elif date_filter == "custom":
-        custom_date_str = request.GET.get("custom_date")
-        try:
-            selected_date = datetime.strptime(custom_date_str, "%Y-%m-%d").date()
-        except (TypeError, ValueError):
-            selected_date = current_time.date()
-    else:
-        selected_date = current_time.date()
+    # Ensure a date is provided
+    if not selected_date_str:
+        return JsonResponse({"error": "Please select a date."}, status=400)
 
-    start_datetime = india_tz.localize(datetime.combine(selected_date, datetime.min.time()))
-    end_datetime = india_tz.localize(datetime.combine(selected_date, datetime.max.time()))
+    try:
+        # Parse selected date
+        selected_date = datetime.strptime(selected_date_str, "%Y-%m-%d").date()
+    except ValueError:
+        return JsonResponse({"error": "Invalid date format. Use YYYY-MM-DD."}, status=400)
 
-    start_utc = start_datetime.astimezone(pytz.utc)
-    end_utc = end_datetime.astimezone(pytz.utc)
+    # Convert to UTC for filtering
+    start_datetime = india_tz.localize(datetime.combine(selected_date, datetime.min.time())).astimezone(pytz.utc)
+    end_datetime = india_tz.localize(datetime.combine(selected_date, datetime.max.time())).astimezone(pytz.utc)
 
-    attendances = Attendance.objects.filter(timestamp__gte=start_utc, timestamp__lte=end_utc)
+    # Fetch attendance records for the selected date
+    attendances = Attendance.objects.filter(timestamp__gte=start_datetime, timestamp__lte=end_datetime)
 
-    data = [
-        {
-            "id": record.employee.id,
-            "name": record.employee.name,
-            "timestamp": record.timestamp.astimezone(india_tz).strftime("%Y-%m-%d %H:%M:%S")
-        }
-        for record in attendances
-    ]
-    return JsonResponse({"attendances": data})
+    # Prepare JSON response
+    data = {
+        "attendances": [
+            {
+                "id": record.employee.id,
+                "name": record.employee.name,
+                "timestamp": record.timestamp.astimezone(india_tz).strftime("%Y-%m-%d %H:%M:%S")
+            }
+            for record in attendances
+        ]
+    }
+
+    return JsonResponse(data)
+
+
 
