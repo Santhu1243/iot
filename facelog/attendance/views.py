@@ -402,7 +402,7 @@ BLINK_THRESHOLD = 0.2
 BLINK_FRAMES = 3
 
 # Load face predictor
-predictor_path = "C:\\Users\\-__-\\Desktop\\chezz_iot\\iot\\facelog\\attendance\\shape_predictor_68_face_landmarks.dat"
+predictor_path = "C:\\Users\\santh\\OneDrive\\Desktop\\new-iot\\facelog\\attendance\\shape_predictor_68_face_landmarks.dat"
 detector = dlib.get_frontal_face_detector()
 predictor = dlib.shape_predictor(predictor_path)
 
