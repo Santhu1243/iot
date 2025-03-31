@@ -48,8 +48,7 @@
                 <tbody id="attendance-body">
                     <tr><td colspan="4" class="text-center">No records found.</td></tr>
                 </tbody>
-            </table>
-        `;
+            </table>  `;
         contentArea.html(tableHtml);
 
         $("#applyFilter").on("click", function() {
@@ -167,7 +166,7 @@
                                     ${data.image_url ? `<img src="${data.image_url}" class="img-thumbnail mt-2">` : ''}
                                 `);
                             } else {
-                                alert("Error: " + JSON.stringify(data.errors));
+                                alert("py: " + JSON.stringify(data.errors));
                             }
                         },
                         error: function() {
@@ -178,6 +177,7 @@
             }
         }
     </script>
+    
 </body>
 
 {% endblock %}

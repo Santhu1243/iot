@@ -611,6 +611,3 @@ def api_attendance_list(request):
     }
 
     return JsonResponse(data)
-
-
-
