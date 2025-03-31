@@ -611,3 +611,43 @@ def api_attendance_list(request):
     }
 
     return JsonResponse(data)
+from django.http import HttpResponse
+from attendance.models import Employee
+import csv
+from django.http import HttpResponse
+from django.shortcuts import get_object_or_404
+from attendance.models import Employee, Attendance
+
+import csv
+from django.http import HttpResponse
+from attendance.models import Attendance
+
+def download_attendance(request):
+    # Fetch all attendance records
+    attendance_records = Attendance.objects.all()
+
+    # Check if attendance records exist
+    if not attendance_records.exists():
+        return HttpResponse("No attendance records found.", status=404)
+
+    # Create the CSV response
+    response = HttpResponse(content_type="text/csv")
+    response["Content-Disposition"] = 'attachment; filename="all_attendance_records.csv"'
+
+    writer = csv.writer(response)
+
+    # Write header row
+    writer.writerow(["Employee ID", "Name", "Timestamp"])
+
+    # Write attendance records
+    for record in attendance_records:
+        writer.writerow([
+            record.employee.id, 
+            record.employee.name, 
+            
+            record.timestamp, 
+            
+        ])
+
+    return response
+
