@@ -611,6 +611,7 @@ def api_attendance_list(request):
     }
 
     return JsonResponse(data)
+
 from django.http import HttpResponse
 from attendance.models import Employee
 import csv
