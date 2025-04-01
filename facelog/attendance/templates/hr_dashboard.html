@@ -1,6 +1,4 @@
-{% extends 'base.html' %}
-
-{% block start %}
+{% extends 'base.html' %} {% block start %}
 <div class="container-fluid vh-100 d-flex flex-column">
     <div class="row flex-grow-1 d-flex h-100">
         <!-- Left Sidebar -->
@@ -24,7 +22,7 @@
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 <!-- FontAwesome for icons -->
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" />
 
 <script>
     function showContent(option) {
@@ -59,27 +57,29 @@
             contentArea.html(tableHtml);
 
             // Ensure only one event binding happens
-            $("#applyFilter").off("click").on("click", function () {
-                let selectedDate = $("#filterDate").val();
-                if (!selectedDate) {
-                    alert("Please select a date!");
-                    return;
-                }
+            $("#applyFilter")
+                .off("click")
+                .on("click", function () {
+                    let selectedDate = $("#filterDate").val();
+                    if (!selectedDate) {
+                        alert("Please select a date!");
+                        return;
+                    }
 
-                contentArea.find("#attendance-body").html("<tr><td colspan='4' class='text-center'>Loading...</td></tr>");
+                    contentArea.find("#attendance-body").html("<tr><td colspan='4' class='text-center'>Loading...</td></tr>");
 
-                $.ajax({
-                    url: `/api/attendance_list/?date=${selectedDate}`,
-                    type: "GET",
-                    dataType: "json",
-                    success: function (data) {
-                        let newHtml = "";
-                        if (data.attendances.length === 0) {
-                            newHtml = `<tr><td colspan="4" class="text-center">No records found.</td></tr>`;
-                        } else {
-                            data.attendances.forEach(record => {
-                                let [date, time] = record.timestamp.split(" ");
-                                newHtml += `
+                    $.ajax({
+                        url: `/api/attendance_list/?date=${selectedDate}`,
+                        type: "GET",
+                        dataType: "json",
+                        success: function (data) {
+                            let newHtml = "";
+                            if (data.attendances.length === 0) {
+                                newHtml = `<tr><td colspan="4" class="text-center">No records found.</td></tr>`;
+                            } else {
+                                data.attendances.forEach((record) => {
+                                    let [date, time] = record.timestamp.split(" ");
+                                    newHtml += `
                                     <tr>
                                         <td>${record.id}</td>
                                         <td>${record.name}</td>
@@ -87,15 +87,17 @@
                                         <td>${time}</td>
                                     </tr>
                                 `;
-                            });
-                        }
-                        contentArea.find("#attendance-body").html(newHtml);
-                    },
-                    error: function () {
-                        contentArea.find("#attendance-body").html("<tr><td colspan='4' class='text-center text-danger'>Error loading attendance records!</td></tr>");
-                    }
+                                });
+                            }
+                            contentArea.find("#attendance-body").html(newHtml);
+                        },
+                        error: function () {
+                            contentArea
+                                .find("#attendance-body")
+                                .html("<tr><td colspan='4' class='text-center text-danger'>Error loading attendance records!</td></tr>");
+                        },
+                    });
                 });
-            });
         }
 
         if (option === "Employees") {
@@ -123,7 +125,7 @@
                     if (data.employees.length === 0) {
                         tableHtml += `<tr><td colspan="4" class="text-center">No employees found.</td></tr>`;
                     } else {
-                        data.employees.forEach(emp => {
+                        data.employees.forEach((emp) => {
                             tableHtml += `
                                 <tr>
                                     <td>${emp.id}</td>
@@ -140,7 +142,7 @@
                 },
                 error: function () {
                     contentArea.html("<h3 class='text-danger'>Error loading employees!</h3>");
-                }
+                },
             });
         }
 
@@ -166,29 +168,31 @@
             `;
             contentArea.html(formHtml);
 
-            $("#addEmployeeForm").off("submit").on("submit", function (e) {
-                e.preventDefault();
-                let empData = {
-                    name: $("#empName").val(),
-                    email: $("#empEmail").val(),
-                    position: $("#empPosition").val()
-                };
+            $("#addEmployeeForm")
+                .off("submit")
+                .on("submit", function (e) {
+                    e.preventDefault();
+                    let empData = {
+                        name: $("#empName").val(),
+                        email: $("#empEmail").val(),
+                        position: $("#empPosition").val(),
+                    };
 
-                $.ajax({
-                    url: `/api/add_employee/`,
-                    type: "POST",
-                    contentType: "application/json",
-                    data: JSON.stringify(empData),
-                    headers: { "X-CSRFToken": getCSRFToken() },
-                    success: function (response) {
-                        $("#responseMsg").html("<span class='text-success'>Employee added successfully!</span>");
-                        $("#addEmployeeForm")[0].reset();
-                    },
-                    error: function () {
-                        $("#responseMsg").html("<span class='text-danger'>Failed to add employee.</span>");
-                    }
+                    $.ajax({
+                        url: `/api/add_employee/`,
+                        type: "POST",
+                        contentType: "application/json",
+                        data: JSON.stringify(empData),
+                        headers: { "X-CSRFToken": getCSRFToken() },
+                        success: function (response) {
+                            $("#responseMsg").html("<span class='text-success'>Employee added successfully!</span>");
+                            $("#addEmployeeForm")[0].reset();
+                        },
+                        error: function () {
+                            $("#responseMsg").html("<span class='text-danger'>Failed to add employee.</span>");
+                        },
+                    });
                 });
-            });
         }
     }
 
