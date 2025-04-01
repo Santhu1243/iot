@@ -566,51 +566,65 @@ def camera_page(request):
     return render(request, "camera_home.html")
 
 # ========================= attendance list Page =========================
-
-from datetime import datetime, timedelta
+from django.db.models import Min, Max
 from django.http import JsonResponse
-from django.utils import timezone
+from django.utils.timezone import make_aware, localtime
 import pytz
+from datetime import datetime, timedelta
 from .models import Attendance
 
 def api_attendance_list(request):
-    """Fetches attendance records based on a selected date."""
+    """Fetches attendance records with first Login and last Logout per employee for a selected date."""
     
     india_tz = pytz.timezone("Asia/Kolkata")
 
     # Get the selected date from request parameters
     selected_date_str = request.GET.get("date")
-
-    # Ensure a date is provided
     if not selected_date_str:
         return JsonResponse({"error": "Please select a date."}, status=400)
 
     try:
-        # Parse selected date
         selected_date = datetime.strptime(selected_date_str, "%Y-%m-%d").date()
     except ValueError:
         return JsonResponse({"error": "Invalid date format. Use YYYY-MM-DD."}, status=400)
 
-    # Convert to UTC for filtering
-    start_datetime = india_tz.localize(datetime.combine(selected_date, datetime.min.time())).astimezone(pytz.utc)
-    end_datetime = india_tz.localize(datetime.combine(selected_date, datetime.max.time())).astimezone(pytz.utc)
+    # Convert selected_date from IST to UTC
+    start_datetime_ist = datetime.combine(selected_date, datetime.min.time())
+    end_datetime_ist = datetime.combine(selected_date, datetime.max.time())
 
-    # Fetch attendance records for the selected date
-    attendances = Attendance.objects.filter(timestamp__gte=start_datetime, timestamp__lte=end_datetime)
+    # Convert to UTC
+    start_datetime = india_tz.localize(start_datetime_ist).astimezone(pytz.utc)
+    end_datetime = india_tz.localize(end_datetime_ist).astimezone(pytz.utc)
+
+    print("Start DateTime (UTC):", start_datetime)
+    print("End DateTime (UTC):", end_datetime)
+
+    # Fetch first and last timestamp per employee
+    attendances = (
+        Attendance.objects
+        .filter(timestamp__range=(start_datetime, end_datetime))
+        .values("employee__id", "employee__name")
+        .annotate(
+            login_time=Min("timestamp"),
+            logout_time=Max("timestamp")
+        )
+    )
+
+    print("Filtered Attendances:", list(attendances))  # Debugging
 
     # Prepare JSON response
-    data = {
-        "attendances": [
-            {
-                "id": record.employee.id,
-                "name": record.employee.name,
-                "timestamp": record.timestamp.astimezone(india_tz).strftime("%Y-%m-%d %H:%M:%S")
-            }
-            for record in attendances
-        ]
-    }
+    data = {"attendances": []}
+
+    for record in attendances:
+        login_time = record.get("login_time")
+        logout_time = record.get("logout_time")
+
+        data["attendances"].append({
+            "id": record["employee__id"],
+            "name": record["employee__name"],
+            "login_date": localtime(login_time, india_tz).strftime("%Y-%m-%d") if login_time else "N/A",
+            "login_time": localtime(login_time, india_tz).strftime("%H:%M:%S") if login_time else "N/A",
+            "logout_time": localtime(logout_time, india_tz).strftime("%H:%M:%S") if logout_time else "N/A",
+        })
 
     return JsonResponse(data)
-
-
-

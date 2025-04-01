@@ -10,6 +10,9 @@ from .views import get_employees
 from .views import api_attendance_list
 
 
+# from .views import download_attendance
+
+
 
 
 urlpatterns = [
@@ -30,8 +33,7 @@ urlpatterns = [
    
     path("api/employees/", get_employees, name="get_employees"),
     path("api/attendance_list/", api_attendance_list, name="api_attendance_list"),
-   
-
+    # path('download/', download_attendance, name='download_attendance'),  
 
 
 ] + static(settings.STATIC_URL, document_root=settings.STATIC_ROOT) + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
