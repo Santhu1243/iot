@@ -38,7 +38,7 @@ class Employee(models.Model):
 
 class Attendance(models.Model):
     employee = models.ForeignKey(Employee, on_delete=models.CASCADE)
-    timestamp = models.DateTimeField(auto_now_add=True)
+    timestamp = models.DateTimeField(auto_now_add=True, editable=False, null=True)
 
     class Meta:
         constraints = [

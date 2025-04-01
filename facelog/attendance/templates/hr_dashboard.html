@@ -25,33 +25,35 @@
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 
     <script>
-        function getCsrfToken() {
-            return document.querySelector("[name=csrfmiddlewaretoken]").value;
-        }
-
         function showContent(option) {
             let contentArea = $("#content-area");
             contentArea.html("<h3>Loading...</h3>");
 
             if (option === "Attendance") {
                 let tableHtml = `
-                <h3>Attendance Records</h3>
-                <label>Select Date:</label>
-                <input type="date" id="filterDate" class="form-control mb-2">
-                <button id="applyFilter" class="btn btn-primary mb-2">Apply</button>
-                <table class="table table-bordered table-striped">
-                    <thead class="thead-dark">
-                        <tr>
-                            <th>Employee ID</th>
-                            <th>Employee Name</th>
-                            <th>Date</th>
-                            <th>Time</th>
-                        </tr>
-                    </thead>
-                    <tbody id="attendance-body">
-                        <tr><td colspan="4" class="text-center">No records found.</td></tr>
-                    </tbody>
-                </table>`;
+                    <h3>Attendance Records</h3>
+                    <label>Select Date:</label>
+                    <input type="date" id="filterDate" class="form-control mb-2">
+                    <button id="applyFilter" class="btn btn-primary mb-2">Apply</button>
+                    
+                    <table class="table table-bordered table-striped">
+                        <thead class="thead-dark">
+                            <tr>
+                                <th>Employee ID</th>
+                                <th>Employee Name</th>
+                                <th>Date</th>
+                                <th>Time</th>
+                            </tr>
+                        </thead>
+                        <tbody id="attendance-body">
+                            <tr><td colspan="4" class="text-center">No records found.</td></tr>
+                        </tbody>
+                    </table> 
+                    
+                    <a href="{% url 'download_attendance' %}" class="btn btn-success">
+                        <i class="fas fa-download"></i> Download Attendance
+                    </a>
+                `;
                 contentArea.html(tableHtml);
 
                 $("#applyFilter").on("click", function () {
@@ -63,7 +65,6 @@
 
                     contentArea.find("#attendance-body").html("<tr><td colspan='4' class='text-center'>Loading...</td></tr>");
 
-                    // Convert date to correct format
                     $.getJSON(`/api/attendance_list/?date=${selectedDate}`, function (data) {
                         let newHtml = "";
                         if (data.attendances.length === 0) {
@@ -71,12 +72,13 @@
                         } else {
                             data.attendances.forEach(record => {
                                 newHtml += `
-                                <tr>
-                                    <td>${record.employee__id}</td>
-                                    <td>${record.employee__name}</td>
-                                    <td>${new Date(record.login_time).toLocaleDateString()}</td>
-                                    <td>${new Date(record.login_time).toLocaleTimeString()}</td>
-                                </tr>`;
+                                    <tr>
+                                        <td>${record.id}</td>
+                                        <td>${record.name}</td>
+                                        <td>${record.timestamp.split(" ")[0]}</td>
+                                        <td>${record.timestamp.split(" ")[1]}</td>
+                                    </tr>
+                                `;
                             });
                         }
                         contentArea.find("#attendance-body").html(newHtml);
@@ -85,89 +87,7 @@
                     });
                 });
             }
-            else if (option === "Employees") {
-                $.getJSON("/api/employees/", function (data) {
-                    let employeesHtml = `
-                    <h3>Employee List</h3>
-                    <input type="text" id="searchEmp" class="form-control mb-2" placeholder="Search Employee...">
-                    <div class="row" id="employee-list">`;
-                    data.employees.forEach(emp => {
-                        employeesHtml += `
-                        <div class="col-md-6 col-lg-4 mb-4 emp-card">
-                            <div class="card shadow-sm">
-                                <img src="${emp.image_url ? emp.image_url : '/static/default-avatar.png'}" class="card-img-top img-fluid rounded" style="width: 150px; height: 150px;">
-                                <div class="card-body">
-                                    <h5 class="card-title">${emp.name}</h5>
-                                    <p class="card-text text-muted">${emp.designation}</p>
-                                </div>
-                            </div>
-                        </div>`;
-                    });
-                    employeesHtml += "</div>";
-                    contentArea.html(employeesHtml);
-
-                    // Search Employee functionality
-                    $("#searchEmp").on("keyup", function () {
-                        let value = $(this).val().toLowerCase();
-                        $(".emp-card").filter(function () {
-                            $(this).toggle($(this).text().toLowerCase().includes(value));
-                        });
-                    });
-                });
-            }
-            else if (option === "Add employee") {
-                contentArea.html(`
-                <h3>Add Employee</h3>
-                <form id="employeeForm" enctype="multipart/form-data">
-                    {% csrf_token %}
-                    <label>Name:</label>
-                    <input type="text" name="name" required class="form-control mb-2">
-                    <label>Emp ID:</label>
-                    <input type="text" name="emp_id" required class="form-control mb-2">
-                    <label>Designation:</label>
-                    <select name="designation" class="form-control mb-2">
-                        <option value="">-- Select Designation --</option>
-                        <option value="EWM functional consultant">EWM Functional Consultant</option>
-                        <option value="EWM ABAP consultant">EWM ABAP Consultant</option>
-                        <option value="Web Developer">Web Developer</option>
-                        <option value="HR">HR</option>
-                    </select>
-                    <label>Image:</label>
-                    <input type="file" name="image" class="form-control mb-2">
-                    <button type="submit" class="btn btn-primary">Submit</button>
-                </form>`);
-
-                $("#employeeForm").submit(function (event) {
-                    event.preventDefault();
-                    let formData = new FormData(this);
-                    $.ajax({
-                        url: "{% url 'add_employee' %}",
-                        type: "POST",
-                        data: formData,
-                        processData: false,
-                        contentType: false,
-                        headers: { "X-CSRFToken": getCsrfToken() },
-                        success: function (data) {
-                            if (data.success) {
-                                contentArea.html(`
-                                    <h3>Employee Added</h3>
-                                    <p><strong>Name:</strong> ${data.name}</p>
-                                    <p><strong>Emp ID:</strong> ${data.emp_id}</p>
-                                    <p><strong>Designation:</strong> ${data.designation}</p>
-                                    ${data.image_url ? `<img src="${data.image_url}" class="img-thumbnail mt-2">` : ''}
-                                `);
-                            } else {
-                                alert("Error: " + JSON.stringify(data.errors));
-                            }
-                        },
-                        error: function () {
-                            alert("Something went wrong!");
-                        }
-                    });
-                });
-            }
         }
     </script>
 </body>
-
 {% endblock %}
