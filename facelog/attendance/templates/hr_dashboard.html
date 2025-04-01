@@ -1,205 +1,246 @@
-{% extends 'base.html' %} {% block start %}
-<div class="container-fluid vh-100 d-flex flex-column">
-    <div class="row flex-grow-1 d-flex h-100">
+{% extends 'base.html' %}
+
+{% block start %}
+
+<body class="vh-100 d-flex flex-column">
+
+    <!-- Main Content (Sidebar + Detail View) -->
+    <div class="container-fluid flex-grow-1 d-flex h-100">
+
         <!-- Left Sidebar -->
         <div class="col-md-3 bg-blue p-3 border-end overflow-auto" id="sidebar">
-            <ul class="list-group">
-                <li class="list-group-item list-group-item-action" onclick="showContent('Attendance')">Attendance</li>
-                <li class="list-group-item list-group-item-action" onclick="showContent('Employees')">Employees</li>
-                <li class="list-group-item list-group-item-action" onclick="showContent('Add Employee')">Add Employee
+            <ul class="nav nav-pills flex-column">
+                <li class="nav-item">
+                    <a class="nav-link active" id="attendance-tab" data-bs-toggle="pill" href="#attendance"
+                        onclick="showContent('Attendance')">Attendance</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" id="employees-tab" data-bs-toggle="pill" href="#employees"
+                        onclick="showContent('Employees')">Employees</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" id="add-employee-tab" data-bs-toggle="pill" href="#add-employee"
+                        onclick="showContent('Add employee')">Add Employee</a>
                 </li>
             </ul>
         </div>
 
         <!-- Right Side (Detail Page) -->
         <div class="col-md-9 p-4 bg-light" id="content-area">
-            <h3>Welcome to Great Moves!</h3>
+            <!-- Tab content will be injected here dynamically -->
+            <div class="tab-content" id="myTabContent">
+                <div class="tab-pane fade show active" id="attendance">
+                    <h3>Loading Attendance Records...</h3>
+                </div>
+                <div class="tab-pane fade" id="employees">
+                    <h3>Loading Employee List...</h3>
+                </div>
+                <div class="tab-pane fade" id="add-employee">
+                    <h3>Add Employee</h3>
+                    <form id="employeeForm" enctype="multipart/form-data">
+                        {% csrf_token %}
+                        <label>Name:</label>
+                        <input type="text" name="name" required class="form-control mb-2">
+
+                        <label>Emp ID:</label>
+                        <input type="text" name="emp_id" required class="form-control mb-2">
+
+                        <label>Designation:</label>
+                        <input type="text" name="designation" required class="form-control mb-2">
+
+                        <label>Image:</label>
+                        <input type="file" name="image" class="form-control mb-2">
+
+                        <button type="submit" class="btn btn-primary">Submit</button>
+                    </form>
+                </div>
+            </div>
         </div>
+
     </div>
-</div>
 
-<!-- Bootstrap & jQuery -->
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-<!-- FontAwesome for icons -->
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" />
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 
-<script>
-    function showContent(option) {
-        let contentArea = $("#content-area");
-        contentArea.html("<h3>Loading...</h3>");
+    <!-- JavaScript for Dynamic Content Update -->
+    <script>
+        function showContent(option) {
+            let contentArea = document.getElementById("content-area");
 
-        if (option === "Attendance") {
-            let tableHtml = `
-                <h3>Attendance Records</h3>
-                <label>Select Date:</label>
-                <input type="date" id="filterDate" class="form-control mb-2">
-                <button id="applyFilter" class="btn btn-primary mb-2">Apply</button>
-                
-                <table class="table table-bordered table-striped">
-                    <thead class="thead-dark">
-                        <tr>
-                            <th>Employee ID</th>
-                            <th>Employee Name</th>
-                            <th>Date</th>
-                            <th>Time</th>
-                        </tr>
-                    </thead>
-                    <tbody id="attendance-body">
-                        <tr><td colspan="4" class="text-center">No records found.</td></tr>
-                    </tbody>
-                </table> 
-                
-                <a href="{% url 'download_attendance' %}" class="btn btn-success">
-                    <i class="fas fa-download"></i> Download Attendance
-                </a>
-            `;
-            contentArea.html(tableHtml);
+            if (option === "Attendance") {
+                contentArea.innerHTML = `
+                    <h3>Loading Attendance Records...</h3>
+                `;
+                fetch("/api/attendance_list/")
+                    .then(response => response.json())
+                    .then(data => {
+                        let tableHtml = `
+                            <h3>Attendance Records</h3>
+                            <!-- Search and Filter -->
+                            <div class="mb-3">
+                                <input type="text" id="search-input" class="form-control mb-3" placeholder="Search by Employee Name">
+                                <select id="filter-date" class="form-select">
+                                    <option value="today">Today</option>
+                                    <option value="yesterday">Yesterday</option>
+                                    <option value="custom">Custom</option>
+                                </select>
+                                <input type="date" id="custom-date" class="form-control mt-2" style="display: none;">
+                                <button class="btn btn-secondary mt-2" onclick="downloadCSV()">Download CSV</button>
+                            </div>
+                            <table class="table table-bordered table-striped">
+                                <thead class="thead-dark">
+                                    <tr>
+                                        <th>Employee ID</th>
+                                        <th>Employee Name</th>
+                                        <th>Date</th>
+                                        <th>Time</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="attendance-table-body">
+                        `;
 
-            // Ensure only one event binding happens
-            $("#applyFilter")
-                .off("click")
-                .on("click", function () {
-                    let selectedDate = $("#filterDate").val();
-                    if (!selectedDate) {
-                        alert("Please select a date!");
-                        return;
-                    }
-
-                    contentArea.find("#attendance-body").html("<tr><td colspan='4' class='text-center'>Loading...</td></tr>");
-
-                    $.ajax({
-                        url: `/api/attendance_list/?date=${selectedDate}`,
-                        type: "GET",
-                        dataType: "json",
-                        success: function (data) {
-                            let newHtml = "";
-                            if (data.attendances.length === 0) {
-                                newHtml = `<tr><td colspan="4" class="text-center">No records found.</td></tr>`;
-                            } else {
-                                data.attendances.forEach((record) => {
-                                    let [date, time] = record.timestamp.split(" ");
-                                    newHtml += `
+                        if (data.attendances.length === 0) {
+                            tableHtml += `<tr><td colspan="4" class="text-center">No attendance records found.</td></tr>`;
+                        } else {
+                            data.attendances.forEach(record => {
+                                tableHtml += `
                                     <tr>
                                         <td>${record.id}</td>
                                         <td>${record.name}</td>
-                                        <td>${date}</td>
-                                        <td>${time}</td>
+                                        <td>${record.timestamp.split(" ")[0]}</td>
+                                        <td>${record.timestamp.split(" ")[1]}</td>
                                     </tr>
                                 `;
-                                });
-                            }
-                            contentArea.find("#attendance-body").html(newHtml);
-                        },
-                        error: function () {
-                            contentArea
-                                .find("#attendance-body")
-                                .html("<tr><td colspan='4' class='text-center text-danger'>Error loading attendance records!</td></tr>");
-                        },
+                            });
+                        }
+
+                        tableHtml += `</tbody></table>`;
+                        contentArea.innerHTML = tableHtml;
+
+                        // Filter and Search Functionality
+                        const searchInput = document.getElementById("search-input");
+                        const filterDate = document.getElementById("filter-date");
+                        const customDate = document.getElementById("custom-date");
+                        const tableBody = document.getElementById("attendance-table-body");
+
+                        searchInput.addEventListener("input", filterRecords);
+                        filterDate.addEventListener("change", filterRecords);
+                        customDate.addEventListener("change", filterRecords);
+
+                        function filterRecords() {
+                            const searchValue = searchInput.value.toLowerCase();
+                            const filterValue = filterDate.value;
+                            const customDateValue = customDate.value;
+
+                            let filteredData = data.attendances.filter(record => {
+                                const nameMatch = record.name.toLowerCase().includes(searchValue);
+                                let dateMatch = true;
+
+                                if (filterValue === "custom" && customDateValue) {
+                                    dateMatch = record.timestamp.startsWith(customDateValue);
+                                } else if (filterValue !== "custom") {
+                                    const recordDate = record.timestamp.split(" ")[0];
+                                    const today = new Date().toISOString().split("T")[0];
+                                    const yesterday = new Date(Date.now() - 864e5).toISOString().split("T")[0];
+
+                                    if (filterValue === "today") {
+                                        dateMatch = recordDate === today;
+                                    } else if (filterValue === "yesterday") {
+                                        dateMatch = recordDate === yesterday;
+                                    }
+                                }
+
+                                return nameMatch && dateMatch;
+                            });
+
+                            renderFilteredTable(filteredData);
+                        }
+
+                        function renderFilteredTable(filteredData) {
+                            tableBody.innerHTML = '';
+                            filteredData.forEach(record => {
+                                tableBody.innerHTML += `
+                                    <tr>
+                                        <td>${record.id}</td>
+                                        <td>${record.name}</td>
+                                        <td>${record.timestamp.split(" ")[0]}</td>
+                                        <td>${record.timestamp.split(" ")[1]}</td>
+                                    </tr>
+                                `;
+                            });
+                        }
+
+                        // CSV Download functionality
+                        window.downloadCSV = function () {
+                            const rows = [["Employee ID", "Employee Name", "Date", "Time"]];
+                            data.attendances.forEach(record => {
+                                rows.push([record.id, record.name, record.timestamp.split(" ")[0], record.timestamp.split(" ")[1]]);
+                            });
+
+                            const csvContent = rows.map(e => e.join(",")).join("\n");
+                            const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+                            const link = document.createElement("a");
+                            link.setAttribute("href", URL.createObjectURL(blob));
+                            link.setAttribute("download", "attendance_records.csv");
+                            link.click();
+                        }
+                    })
+                    .catch(error => {
+                        contentArea.innerHTML = `<p class="text-danger">Error loading attendance records.</p>`;
                     });
-                });
-        }
-
-        if (option === "Employees") {
-            contentArea.html("<h3>Loading Employees...</h3>");
-
-            $.ajax({
-                url: `/api/employee_list/`,
-                type: "GET",
-                dataType: "json",
-                success: function (data) {
-                    let tableHtml = `
-                        <h3>Employee List</h3>
-                        <table class="table table-bordered table-striped">
-                            <thead>
-                                <tr>
-                                    <th>ID</th>
-                                    <th>Name</th>
-                                    <th>Email</th>
-                                    <th>Position</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                    `;
-
-                    if (data.employees.length === 0) {
-                        tableHtml += `<tr><td colspan="4" class="text-center">No employees found.</td></tr>`;
-                    } else {
-                        data.employees.forEach((emp) => {
-                            tableHtml += `
-                                <tr>
-                                    <td>${emp.id}</td>
-                                    <td>${emp.name}</td>
-                                    <td>${emp.email}</td>
-                                    <td>${emp.position}</td>
-                                </tr>
+            } else if (option === "Employees") {
+                contentArea.innerHTML = `
+                    <h3>Loading Employee List...</h3>
+                `;
+                fetch("/api/employees/")
+                    .then(response => response.json())
+                    .then(data => {
+                        let employeesHtml = `
+                            <h3>Employee List</h3>
+                            <div class="row">
+                        `;
+                        data.employees.forEach(emp => {
+                            employeesHtml += `
+                                <div class="col-md-6 col-lg-4 mb-4">
+                                    <div class="card shadow-sm">
+                                        <img src="${emp.image_url}" class="card-img-top img-fluid rounded" alt="${emp.name}" style="width: 150px; height: 150px;">
+                                        <div class="card-body">
+                                            <h5 class="card-title">${emp.name}</h5>
+                                            <p class="card-text text-muted">${emp.designation}</p>
+                                        </div>
+                                    </div>
+                                </div>
                             `;
                         });
-                    }
-
-                    tableHtml += `</tbody></table>`;
-                    contentArea.html(tableHtml);
-                },
-                error: function () {
-                    contentArea.html("<h3 class='text-danger'>Error loading employees!</h3>");
-                },
-            });
-        }
-
-        if (option === "Add Employee") {
-            let formHtml = `
-                <h3>Add Employee</h3>
-                <form id="addEmployeeForm">
-                    <div class="mb-3">
-                        <label>Name</label>
-                        <input type="text" id="empName" class="form-control" required>
-                    </div>
-                    <div class="mb-3">
-                        <label>Email</label>
-                        <input type="email" id="empEmail" class="form-control" required>
-                    </div>
-                    <div class="mb-3">
-                        <label>Position</label>
-                        <input type="text" id="empPosition" class="form-control" required>
-                    </div>
-                    <button type="submit" class="btn btn-primary">Add Employee</button>
-                </form>
-                <p id="responseMsg" class="mt-2"></p>
-            `;
-            contentArea.html(formHtml);
-
-            $("#addEmployeeForm")
-                .off("submit")
-                .on("submit", function (e) {
-                    e.preventDefault();
-                    let empData = {
-                        name: $("#empName").val(),
-                        email: $("#empEmail").val(),
-                        position: $("#empPosition").val(),
-                    };
-
-                    $.ajax({
-                        url: `/api/add_employee/`,
-                        type: "POST",
-                        contentType: "application/json",
-                        data: JSON.stringify(empData),
-                        headers: { "X-CSRFToken": getCSRFToken() },
-                        success: function (response) {
-                            $("#responseMsg").html("<span class='text-success'>Employee added successfully!</span>");
-                            $("#addEmployeeForm")[0].reset();
-                        },
-                        error: function () {
-                            $("#responseMsg").html("<span class='text-danger'>Failed to add employee.</span>");
-                        },
+                        employeesHtml += "</div>";  // Close row div
+                        contentArea.innerHTML = employeesHtml;
+                    })
+                    .catch(error => {
+                        contentArea.innerHTML = `<p>Error loading employees.</p>`;
                     });
-                });
+            } else if (option === "Add employee") {
+                contentArea.innerHTML = `
+                    <h3>Add Employee</h3>
+                    <form id="employeeForm" enctype="multipart/form-data">
+                        {% csrf_token %}
+                        <label>Name:</label>
+                        <input type="text" name="name" required class="form-control mb-2">
+    
+                        <label>Emp ID:</label>
+                        <input type="text" name="emp_id" required class="form-control mb-2">
+    
+                        <label>Designation:</label>
+                        <input type="text" name="designation" required class="form-control mb-2">
+    
+                        <label>Image:</label>
+                        <input type="file" name="image" class="form-control mb-2">
+    
+                        <button type="submit" class="btn btn-primary">Submit</button>
+                    </form>
+                `;
+            }
         }
-    }
+    </script>
 
-    // Function to get CSRF token from Django
-    function getCSRFToken() {
-        let csrfToken = document.cookie.match(/csrftoken=([\w-]+)/);
-        return csrfToken ? csrfToken[1] : "";
-    }
-</script>
+</body>
 {% endblock %}

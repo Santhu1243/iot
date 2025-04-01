@@ -29,10 +29,9 @@ urlpatterns = [
     path('add-employee/', add_employee, name='add_employee'),
     path('employees/', employee_list, name='employee_list'),
     path('video_feed/', video_feed, name='video_feed'),
-    path('detected_employee/', get_detected_employee, name='detected_employee'),
    
     path("api/employees/", get_employees, name="get_employees"),
-    path("api/attendance_list/", api_attendance_list, name="api_attendance_list"),
+    path('api/attendance_list/', api_attendance_list, name='attendance_list'),
     path('download/', views.download_attendance, name='download_attendance'),  
 
 
