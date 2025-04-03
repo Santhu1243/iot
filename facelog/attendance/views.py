@@ -35,7 +35,7 @@ def hr_dashboard_view(request):
     
     # Handling Attendance Filtering
     date_filter = request.GET.get('date', 'today')
-    selected_date = datetime.today().date()
+    selected_date = datetime.now().date()
 
     if date_filter == 'yesterday':
         selected_date -= timedelta(days=1)
@@ -66,30 +66,67 @@ def hr_dashboard_view(request):
 def employee_login_view(request):
     return render(request, 'cam_home.html')
 
+# ========================= Employee Views =========================
+# def add_employee(request):
+#     if request.method == "POST":
+#         print("FILES:", request.FILES)  # Debugging: See if the file is being uploaded
+#         form = EmployeeForm(request.POST, request.FILES)
+#         if form.is_valid():
+#             employee = form.save()
+#             print("Saved file path:", employee.image.path)  # Debugging: Check where it's saved
+#             return redirect(reverse('employee_list'))
+#         else:
+#             print("Form errors:", form.errors)  # Debugging: See form errors
+
+#     else:
+#         form = EmployeeForm()
+#     return render(request, 'add_employee.html', {'form': form})
+
 from django.http import JsonResponse
+from django.views.decorators.csrf import csrf_exempt
+from django.views.decorators.http import require_POST
+from .forms import EmployeeForm
 
+@csrf_exempt  # Temporarily disable CSRF protection for testing (Remove in production)
+@require_POST  # Ensures only POST requests are allowed
 def add_employee(request):
-    if request.method == "POST":
-        form = EmployeeForm(request.POST, request.FILES)
-        if form.is_valid():
-            employee = form.save()
-            return JsonResponse({
-                "success": True,
-                "name": employee.name,
-                "emp_id": employee.emp_id,
-                "designation": employee.designation,
-                "image_url": employee.image.url if employee.image else None
-            })
-        else:
-            return JsonResponse({"success": False, "errors": form.errors}, status=400)
+    """Handles adding a new employee via AJAX request."""
+    form = EmployeeForm(request.POST, request.FILES)
+    
+    if form.is_valid():
+        employee = form.save()
+        return JsonResponse({
+            "success": True,
+            "name": employee.name,
+            "emp_id": employee.emp_id,
+            "designation": employee.designation,
+            "image_url": getattr(employee.image, 'url', None)  # Handles missing image
+        })
+    
+    return JsonResponse({"success": False, "errors": form.errors}, status=400)
 
-    return JsonResponse({"success": False, "message": "Invalid request"}, status=400)
 
 
+
+from django.http import JsonResponse
+from django.shortcuts import get_list_or_404
+from .models import Employee
 
 def employee_list(request):
+    """Returns a JSON response with all employees"""
     employees = Employee.objects.all()
-    return render(request, 'employee_list.html', {'employees': employees})
+    employee_data = [
+        {
+            "emp_id": emp.emp_id,  
+            "name": emp.name,
+            "designation": emp.designation,  # ✅ Ensure consistency
+            "image_url": emp.image.url if emp.image else "/static/default-image.jpg"
+        }
+        for emp in employees
+    ]
+    return JsonResponse({"employees": employee_data})
+
+
 
 def get_employees(request):
     employees = Employee.objects.all()
@@ -103,7 +140,96 @@ def get_employees(request):
     ]
     return JsonResponse({"employees": employee_data})
 # ========================= Face Recognition Setup =========================
+# import os
+# import face_recognition
+# from django.conf import settings
+# from .models import Employee
 
+# KNOWN_FACES_DIR = "C:\\Users\\santh\\OneDrive\\Desktop\\chezzion-iot\\facelog\\media\\employees"  
+
+# known_faces = []
+# known_names = []
+# employee_data = {}
+
+# def load_known_faces():
+#     global known_faces, known_names, employee_data
+#     known_faces.clear()
+#     known_names.clear()
+#     employee_data.clear()
+
+#     # ✅ Load known faces from directory
+#     for filename in os.listdir(KNOWN_FACES_DIR):
+#         if filename.endswith((".jpg", ".jpeg", ".png")):
+#             file_path = os.path.join(KNOWN_FACES_DIR, filename)
+#             image = face_recognition.load_image_file(file_path)
+#             encodings = face_recognition.face_encodings(image)
+
+#             if encodings:
+#                 known_faces.append(encodings[0])  # ✅ Only take the first encoding
+#                 known_names.append(os.path.splitext(filename)[0])
+
+#     print(f"✅ Loaded {len(known_faces)} known faces from directory")  # Debugging
+
+#     # ✅ Load employee faces from database
+#     for employee in Employee.objects.all():
+#         if employee.image:
+#             image_path = os.path.normpath(os.path.join(settings.MEDIA_ROOT, employee.image.name))
+#             image_url = f"{settings.MEDIA_URL}{employee.image.name}"
+
+#             print(f"🖼️ Checking Image: {image_path}")
+
+#             if os.path.exists(image_path):
+#                 image = face_recognition.load_image_file(image_path)
+#                 encodings = face_recognition.face_encodings(image)
+
+#                 if encodings:
+#                     known_faces.append(encodings[0])
+#                     known_names.append(employee.name)
+#                     employee_data[employee.name] = {
+#                         "emp_id": employee.emp_id,
+#                         "designation": employee.designation,
+#                         "image_url": image_url
+#                     }
+#                     print(f"✔️ Face loaded for {employee.name}")
+#                 else:
+#                     print(f"❌ No face found in {image_path}")
+#             else:
+#                 print(f"❌ Image not found: {image_path}")
+
+#     print(f"✅ Total Faces Loaded: {len(known_faces)}")
+
+
+
+# ========================= Attendance Processing =========================
+# def process_attendance(frame):
+#     global known_faces, known_names, employee_data
+
+#     # Convert frame to RGB
+#     rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+
+#     # Detect face locations and encodings
+#     face_locations = face_recognition.face_locations(rgb_frame)
+#     face_encodings = face_recognition.face_encodings(rgb_frame, face_locations)
+
+#     for face_encoding in face_encodings:
+#         print("\n🔍 Checking Match for Face Encoding:", face_encoding)  # Debugging
+
+#         # Compare face encodings with known faces
+#         matches = face_recognition.compare_faces(known_faces, face_encoding, tolerance=0.6)
+#         face_distances = face_recognition.face_distance(known_faces, face_encoding)
+
+#         print("🎯 Matches:", matches)  # Debugging
+#         print("📏 Face Distances:", face_distances)  # Debugging
+
+#         if True in matches:
+#             best_match_index = np.argmin(face_distances)
+#             name = known_names[best_match_index]
+#             print(f"✅ Match Found: {name}")
+#         else:
+#             name = "Unknown"
+#             print("❌ No Match Found")
+
+#     return name  # Ensure the function returns name properly
 
 
 import cv2
@@ -165,6 +291,125 @@ def periodic_refresh():
 
 threading.Thread(target=periodic_refresh, daemon=True).start()
 
+# # ========================= Live Video Feed =========================
+# import cv2
+# import dlib
+# import time
+# import numpy as np
+# import face_recognition
+# from scipy.spatial import distance as dist
+
+# # Load Dlib face detector and 68-landmark predictor
+# detector = dlib.get_frontal_face_detector()
+# predictor = dlib.shape_predictor("C:\\Users\\-__-\\Desktop\\chezz_iot\\iot\\facelog\\attendance\\shape_predictor_68_face_landmarks.dat")
+
+# # Define eye landmark indices
+# LEFT_EYE = list(range(36, 42))
+# RIGHT_EYE = list(range(42, 48))
+
+# # Blink detection thresholds
+# BLINK_THRESHOLD = 0.2   
+# BLINK_FRAMES = 3      
+# blink_counter = 0        
+
+# # Employee details (Replace with database integration)
+# known_faces = []  
+# known_names = []  
+# employee_data = {}  
+
+# # Eye Aspect Ratio (EAR) calculation
+# def calculate_ear(eye):
+#     """Calculates the Eye Aspect Ratio (EAR) to detect blinks."""
+#     A = dist.euclidean(eye[1], eye[5])
+#     B = dist.euclidean(eye[2], eye[4])
+#     C = dist.euclidean(eye[0], eye[3])
+#     return (A + B) / (2.0 * C)
+
+
+# def generate_frames(): 
+#     global last_detected_employee, last_detected_time, blink_counter
+
+#     camera = cv2.VideoCapture(0)
+#     if not camera.isOpened():
+#         print("❌ Error: Camera not opening.")
+#         return
+    
+#     while True:
+#         success, frame = camera.read()
+#         if not success:
+#             print("❌ Error: Failed to capture frame.")
+#             break
+        
+#         # small_frame = cv2.resize(frame, (0, 0), fx=0.5, fy=0.5)
+#         # gray = cv2.cvtColor(small_frame, cv2.COLOR_BGR2GRAY)
+
+#         # faces = detector(gray)
+
+#         # blink_detected = False  # Flag to check if a blink has been detected
+
+#         # for face in faces:
+#         #     landmarks = predictor(gray, face)
+
+#         #     # Extract left and right eye coordinates
+#         #     left_eye = np.array([(landmarks.part(i).x, landmarks.part(i).y) for i in LEFT_EYE])
+#         #     right_eye = np.array([(landmarks.part(i).x, landmarks.part(i).y) for i in RIGHT_EYE])
+
+#         #     # Calculate EAR for both eyes
+#         #     left_ear = calculate_ear(left_eye)
+#         #     right_ear = calculate_ear(right_eye)
+#         #     avg_ear = (left_ear + right_ear) / 2.0
+
+#         #     # Blink detection logic
+#         #     if avg_ear < BLINK_THRESHOLD:
+#         #         blink_counter += 1  # Increment counter if eyes are closed
+#         #     else:
+#         #         if blink_counter >= BLINK_FRAMES:  # Blink detected
+#         #             print("✅ Blink detected! Proceeding with face recognition...")
+#         #             blink_detected = True
+#         #         blink_counter = 0  # Reset blink counter when eyes open
+
+#         # # Perform face recognition **ONLY AFTER a blink is detected**
+#         # if blink_detected:
+#         #     face_locations = face_recognition.face_locations(gray)
+#         #     face_encodings = face_recognition.face_encodings(gray, face_locations)
+
+#         #     detected = False  
+
+#         #     for face_encoding, (top, right, bottom, left) in zip(face_encodings, face_locations):
+#         #         matches = face_recognition.compare_faces(known_faces, face_encoding, tolerance=0.4)
+#         #         name, emp_id, image, designation = "Unknown", "Unknown", "/media/employees/default_user.png", "Unknown"
+
+#         #         if any(matches):
+#         #             face_distances = face_recognition.face_distance(known_faces, face_encoding)
+#         #             best_match_index = np.argmin(face_distances)
+#         #             if matches[best_match_index]:
+#         #                 name = known_names[best_match_index]
+#         #                 emp_id = employee_data[name]["emp_id"]
+#         #                 image = employee_data[name]["image"]
+#         #                 designation = employee_data[name]["designation"]
+#         #                 detected = True
+
+#         #                 last_detected_employee = {
+#         #                     "emp_id": emp_id,
+#         #                     "emp_name": name,
+#         #                     "image": image,
+#         #                     "designation": designation,
+#         #                 }
+#         #                 last_detected_time = time.time()
+
+#         #         # Scale back the face coordinates
+#         #         top, right, bottom, left = top * 2, right * 2, bottom * 2, left * 2
+
+#         #         # Draw rectangle on detected face only after blink
+#         #         color = (0, 255, 0) if detected else (0, 0, 255)  
+#         #         cv2.rectangle(frame, (left, top), (right, bottom), color, 2)
+#         #         cv2.putText(frame, name, (left, top - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.9, color, 2)
+
+#         # _, buffer = cv2.imencode(".jpg", frame)
+#         # yield (b"--frame\r\n"
+#         #        b"Content-Type: image/jpeg\r\n\r\n" + buffer.tobytes() + b"\r\n")
+
+#     camera.release()
 
 
 # ========================= Live Video Feed =========================
@@ -350,68 +595,44 @@ from django.utils import timezone
 import pytz
 from .models import Attendance
 
-from django.http import JsonResponse
-from datetime import datetime
-import pytz
-from .models import Attendance  # Make sure to import your Attendance model
-
-from django.http import JsonResponse
-from .models import Attendance
-from datetime import datetime
-import pytz
-
-from django.http import JsonResponse
-from .models import Attendance  # Ensure you import the Attendance model
-import pytz
-from datetime import datetime
-
 def api_attendance_list(request):
-    """Fetches attendance records with an optional date filter."""
-
-    india_tz = pytz.timezone("Asia/Kolkata")
+    """Fetches attendance records based on a selected date."""
     
-    # Get the selected date from request parameters (optional)
+    india_tz = pytz.timezone("Asia/Kolkata")
+
+    # Get the selected date from request parameters
     selected_date_str = request.GET.get("date")
 
+    # Ensure a date is provided
+    if not selected_date_str:
+        return JsonResponse({"error": "Please select a date."}, status=400)
+
     try:
-        # If date is provided, filter records by date
-        if selected_date_str:
-            # Ensure a date is provided in correct format
-            try:
-                selected_date = datetime.strptime(selected_date_str, "%Y-%m-%d").date()
-            except ValueError:
-                return JsonResponse({"error": "Invalid date format. Use YYYY-MM-DD."}, status=400)
+        # Parse selected date
+        selected_date = datetime.strptime(selected_date_str, "%Y-%m-%d").date()
+    except ValueError:
+        return JsonResponse({"error": "Invalid date format. Use YYYY-MM-DD."}, status=400)
 
-            # Convert to UTC for filtering
-            start_datetime = india_tz.localize(datetime.combine(selected_date, datetime.min.time())).astimezone(pytz.utc)
-            end_datetime = india_tz.localize(datetime.combine(selected_date, datetime.max.time())).astimezone(pytz.utc)
+    # Convert to UTC for filtering
+    start_datetime = india_tz.localize(datetime.combine(selected_date, datetime.min.time())).astimezone(pytz.utc)
+    end_datetime = india_tz.localize(datetime.combine(selected_date, datetime.max.time())).astimezone(pytz.utc)
 
-            # Fetch attendance records for the selected date
-            attendances = Attendance.objects.filter(timestamp__gte=start_datetime, timestamp__lte=end_datetime)
-        else:
-            # Fetch all attendance records if no date is provided
-            attendances = Attendance.objects.all()
+    # Fetch attendance records for the selected date
+    attendances = Attendance.objects.filter(timestamp__gte=start_datetime, timestamp__lte=end_datetime)
 
-        # Prepare JSON response
-        data = {
-            "attendances": [
-                {
-                    "id": attendance.id,
-                    "employee_id": attendance.employee_id,
-                    "name": attendance.employee.name,  # Assuming Employee has a 'name' field
-                    "timestamp": attendance.timestamp.astimezone(india_tz).strftime("%Y-%m-%d %H:%M:%S")
-                }
-                for attendance in attendances
-            ]
-        }
+    # Prepare JSON response
+    data = {
+        "attendances": [
+            {
+                "id": record.employee.id,
+                "name": record.employee.name,
+                "timestamp": record.timestamp.astimezone(india_tz).strftime("%Y-%m-%d %H:%M:%S")
+            }
+            for record in attendances
+        ]
+    }
 
-        return JsonResponse(data)
-
-    except Exception as e:
-        return JsonResponse({'error': str(e)}, status=400)  # Return error message if something fails
-
-
-
+    return JsonResponse(data)
 from django.http import HttpResponse
 from attendance.models import Employee
 import csv
@@ -451,5 +672,3 @@ def download_attendance(request):
         ])
 
     return response
-
-
